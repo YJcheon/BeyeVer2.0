@@ -25,11 +25,11 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements OnInitListener{
 
-    Intent intent;
-    SpeechRecognizer mRecognizer;
-    TextToSpeech tts;
-    final int PERMISSION = 1;
-    GestureDetector mDetector;
+    private Intent intent;
+    private SpeechRecognizer mRecognizer;
+    private TextToSpeech tts;
+    private final int PERMISSION = 1;
+    private GestureDetector mDetector;
     private Geocoder geocoder;
 
     @Override
@@ -195,7 +195,6 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
             // 말을 하면 ArrayList에 단어를 넣고 textView에 단어를 이어줍니다.
             ArrayList<String> matches =
                     results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-            Log.i("size", String.valueOf(matches.size()));
 
             List<Address> addressList = null;
             try {
@@ -211,6 +210,7 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
             else {
                 Intent intent = new Intent(getApplicationContext(), RoadActivity.class);
                 intent.putExtra("dest", addressList.get(0).toString());
+                intent.putExtra("destName",matches.get(0));
                 startActivity(intent);
             }
 

@@ -23,26 +23,23 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import java.util.ArrayList;
-
 
 public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
-    ODsayService odsayService;
-    TextView textView;
-    String dest;
+    private ODsayService odsayService;
+    private TextView textView;
+    private String dest;
     private GpsInfo gps;
-    double latitude;
-    double longitude;
-    TextToSpeech tts;
-    String address;
-    String destLatitude;
-    String destLongitude;
-    TMapTapi tmaptapi;
-    TMapData tmapdata;
-    String[] splitPath;
-    int pathLength;
-    TMapPoint[][] point;
+    private double latitude;
+    private double longitude;
+    private TextToSpeech tts;
+    private String destLatitude;
+    private String destLongitude;
+    private TMapTapi tmaptapi;
+    private TMapData tmapdata;
+    private int routeLength;
     private Key key;
+    private Route[] route;
+    private String destName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,11 +52,11 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         tmaptapi = new TMapTapi(this);
         tmaptapi.setSKTMapAuthentication (key.getTmapApiKey());
         tmapdata = new TMapData();
-        splitPath = new String[10];
+        route = new Route[20];
 
         Intent intent = getIntent();
         dest = intent.getExtras().getString("dest");
-
+        destName = intent.getExtras().getString("destName");
         // 싱글톤 생성, Key 값을 활용하여 객체 생성
         odsayService = ODsayService.init(this, key.getOdsayApiKey());
         // 서버 연결 제한 시간(단위(초), default : 5초)
@@ -69,12 +66,11 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         // 콤마를 기준으로 split
         String []splitStr = dest.split(",");
-        address = splitStr[0].substring(splitStr[0].indexOf("\"") + 1,splitStr[0].length() - 2); // 주소
         destLatitude = splitStr[10].substring(splitStr[10].indexOf("=") + 1); // 위도
         destLongitude = splitStr[12].substring(splitStr[12].indexOf("=") + 1); // 경도
 
 
-        gps = new GpsInfo(this);
+        gps = new GpsInfo(this,textView,tts);
         if (gps.isGetLocation()) {
             latitude = gps.getLatitude();
             longitude = gps.getLongitude();
@@ -84,13 +80,16 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             gps.showSettingsAlert();
         }
 
-
+        for(int i = 0; i < route.length;i++) {
+            route[i] = new Route();
+        }
 
     }
 
     @Override
     protected  void onDestroy() {
         super.onDestroy();
+        gps = null;
         if(tts != null) {
             tts.stop();
             tts.shutdown();
@@ -107,6 +106,8 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             // 호출 성공 시 실행
             @Override
             public void onSuccess(ODsayData odsayData, API api) {
+
+
                 // API Value 는 API 호출 메소드 명을 따라갑니다.
                 if (api == API.SEARCH_PUB_TRANS_PATH) {
                     Log.d("path : ", odsayData.getJson().toString());
@@ -115,10 +116,12 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         if(odsayData.getJson().has("error")) {
                             try {
                                 if (odsayData.getJson().getJSONObject("error").getString("code").equals("-98")) {
-                                    tts.speak("700m 이내 이므로 도보로 안내하겠습니다.", TextToSpeech.QUEUE_FLUSH, null);
-                                    pathLength = 1;
+                                    routeLength = 1;
                                     findPedestrainPath(0, new TMapPoint(latitude, longitude), new TMapPoint(Double.parseDouble(destLatitude), Double.parseDouble(destLongitude)));
+                                    route[0].setDest(destName);
+
                                     Thread.sleep(400);
+                                    route[0].setLastPath();
                                 }
                             }
                             catch (JSONException e) {
@@ -130,59 +133,74 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             if(result.has("path")) {
                                 JSONObject path = result.getJSONArray("path").getJSONObject(0);
                                 JSONArray subPath = path.getJSONArray("subPath");
-                                pathLength = subPath.length();
+                                routeLength = subPath.length();
 
 
                                 double lat = latitude;
                                 double lon = longitude;
-                                for (int i = 0;i < subPath.length(); i++) {
+                                double destLat;
+                                double destLon;
+                                for (int i = 0;i < routeLength; i++) {
                                     int trafficType = subPath.getJSONObject(i).getInt("trafficType");
                                     if (trafficType == 3) {
                                         if(i < subPath.length()-1) {
-                                            double destLat = subPath.getJSONObject(i + 1).getDouble("startY");
-                                            double destlon = subPath.getJSONObject(i + 1).getDouble("startX");
-                                            findPedestrainPath(i,new TMapPoint(lat, lon), new TMapPoint(destLat, destlon));
-                                            lat = destLat;
-                                            lon = destlon;
+                                            destLat = subPath.getJSONObject(i + 1).getDouble("startY");
+                                            destLon = subPath.getJSONObject(i + 1).getDouble("startX");
+                                            findPedestrainPath(i,new TMapPoint(lat, lon), new TMapPoint(destLat, destLon));
                                         }
                                         else {
-                                            findPedestrainPath(i,new TMapPoint(lat, lon), new TMapPoint(Double.parseDouble(destLatitude), Double.parseDouble(destLongitude)));
-                                            Thread.sleep(pathLength*250);
+                                            destLat = Double.parseDouble(destLatitude);
+                                            destLon = Double.parseDouble(destLongitude);
+                                            findPedestrainPath(i,new TMapPoint(lat, lon), new TMapPoint(destLat, destLon));
 
+                                            route[i].setDest(destName);
+                                            Thread.sleep(routeLength*250);
+                                            for(int j = 0; j < routeLength;j++) {
+                                                route[j].setLastPath();
+                                            }
                                         }
 
                                     }
 
-                                    else if(trafficType == 2){
-                                        lat = subPath.getJSONObject(i).getDouble("endY");
-                                        lon = subPath.getJSONObject(i).getDouble("endX");
-                                        String busNo = subPath.getJSONObject(i).getJSONArray("lane").getJSONObject(0).getString("busNo");
-                                        String startName = subPath.getJSONObject(i).getString("startName");
-                                        String endName = subPath.getJSONObject(i).getString("endName");
-                                        splitPath[i] = "버스\n" + startName + "\n" + endName + "\n";
-                                    }
                                     else {
-                                        lat = subPath.getJSONObject(i).getDouble("endY");
-                                        lon = subPath.getJSONObject(i).getDouble("endX");
-                                        String name = subPath.getJSONObject(i).getJSONArray("lane").getJSONObject(0).getString("name");
+                                        destLat = subPath.getJSONObject(i).getDouble("endY");
+                                        destLon = subPath.getJSONObject(i).getDouble("endX");
                                         String startName = subPath.getJSONObject(i).getString("startName");
                                         String endName = subPath.getJSONObject(i).getString("endName");
-                                        splitPath[i] = "지하철 " + name + "\n" + startName + "\n" + endName + "\n";
+
+                                        if (trafficType == 2) {
+                                            String busNo = subPath.getJSONObject(i).getJSONArray("lane").getJSONObject(0).getString("busNo");
+                                            route[i].setType(2);
+                                            route[i].addRoute(startName + "에서 " + busNo + " 버스를 타고 " + endName + "로 이동", lat, lon);
+                                        }
+                                        else {
+                                            String name = subPath.getJSONObject(i).getJSONArray("lane").getJSONObject(0).getString("name");
+                                            route[i].setType(1);
+                                            route[i].addRoute(startName + "에서 " +name + " 지하철을 타고 " + endName + "로 이동", lat, lon);
+                                        }
+                                        route[i-1].setDest(startName);
+                                        route[i].addRoute(endName + "에 도착", destLat, destLon);
+
                                     }
-                                    Log.d("subpath", i +splitPath[i]);
+                                    lat = destLat;
+                                    lon = destLon;
+
                                 }
 
                             }
-                            else{
 
-                            }
                         }
                         String tmp = new String("");
-                        for  (int i = 0; i < pathLength;i++) {
-                            tmp += splitPath[i] + "\n";
+                        for  (int i = 0; i < routeLength;i++) {
+                            for (int j = 0; j < route[i].getSize(); j++) {
+                                tmp += route[i].getPath(j) + "\n위도 : " + route[i].getLatitude(j).toString() + "\n경도 : " + route[i].getLongitude(j).toString() + "\n";
+                            }
+                            tmp +="\n";
                         }
                         textView.setText(tmp);
-
+                        tts.speak(destName + "까지 길안내를 시작하겠습니다.", TextToSpeech.QUEUE_FLUSH, null);
+                        route[0].setFirstPoint(gps.getLatitude(),gps.getLongitude());
+                        gps.setGuid(true, route, routeLength);
                     } catch (JSONException e) {
                         e.printStackTrace();
                     } catch (InterruptedException e) {
@@ -208,7 +226,10 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         tmapdata.findPathDataAllType(TMapData.TMapPathType.PEDESTRIAN_PATH, source, dest, new TMapData.FindPathDataAllListenerCallback() {
             @Override
             public void onFindPathDataAll(Document document) {
-                String result = new String("");
+                String path = new String("");
+                String[] point;
+                Double lat = 0.0;
+                Double lon = 0.0;
                 Element root = document.getDocumentElement();
                 NodeList nodeListPlacemark = root.getElementsByTagName("Placemark");
 
@@ -220,20 +241,20 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     if(!nodeListPlacemarkItem.item(9).getTextContent().equals("#lineStyle")) {
                         for (int j = 0; j < nodeListPlacemarkItem.getLength(); j++) {
                             if (nodeListPlacemarkItem.item(j).getNodeName().equals("description")) {
-                                result += nodeListPlacemarkItem.item(j).getTextContent().trim() + "\n";
+                                path = nodeListPlacemarkItem.item(j).getTextContent().trim().replace("을 따라","로").replace("횡단보도","횡단보도 이용");
                                 Log.d("debug", nodeListPlacemarkItem.item(j).getTextContent().trim());
                             }
                             else if(nodeListPlacemarkItem.item(j).getNodeName().equals("Point")) {
-                                //result += nodeListPlacemarkItem.item(j).getTextContent().trim() + "\n";
-                                String point = nodeListPlacemarkItem.item(j).getTextContent().trim();
-                                Log.d("lon", point.split(",")[0]);
-                                Log.d("lat",point.split(",")[1]);
+                                point = nodeListPlacemarkItem.item(j).getTextContent().trim().split(",");
+                                lat = Double.parseDouble(point[1]);
+                                lon = Double.parseDouble(point[0]);
                             }
                         }
+                        route[index].addRoute(path,lat,lon);
+
                     }
                 }
-                Log.d("result",result);
-                splitPath[index] = "도보\n" +result + "\n";
+                route[index].setType(3);
 
             }
         });
