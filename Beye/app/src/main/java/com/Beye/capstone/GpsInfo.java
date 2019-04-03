@@ -14,10 +14,18 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
+import android.speech.tts.TextToSpeech;
 import android.support.v4.content.ContextCompat;
+import android.widget.TextView;
 
 public class GpsInfo extends Service implements LocationListener {
-
+    TextView textView;
+    private int routeIndex;
+    private int pathIndex;
+    private int routeLength;
+    private boolean isGuid;
+    private Route[] route;
+    private TextToSpeech tts;
     private final Context mContext;
 
     // 현재 GPS 사용유무
@@ -30,20 +38,31 @@ public class GpsInfo extends Service implements LocationListener {
     boolean isGetLocation = false;
 
     Location location;
-    double lat; // 위도
-    double lon; // 경도
+    private double lat; // 위도
+    private double lon; // 경도
 
-    // 최소 GPS 정보 업데이트 거리 5미터
-    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
+    // 최소 GPS 정보 업데이트 거리(단위 : 미터)
+    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 0;
 
-    // 최소 GPS 정보 업데이트 시간 밀리세컨이므로 1초
+    // 최소 GPS 정보 업데이트 시간(단위: 밀리세컨, 1000 = 1초)
     private static final long MIN_TIME_BW_UPDATES = 1000 ;
 
     protected LocationManager locationManager;
 
-    public GpsInfo(Context context) {
+    public GpsInfo(Context context, TextView textView, TextToSpeech tts) {
         this.mContext = context;
+        this.textView = textView;
+        this.tts = tts;
+        isGuid = false;
         getLocation();
+    }
+
+    public void setGuid(boolean isGuid, Route[] route, int routeLength){
+        this.isGuid = isGuid;
+        this.route = route;
+        routeIndex = 0;
+        pathIndex = 0;
+        this.routeLength = routeLength;
     }
 
     @TargetApi(23)
@@ -188,7 +207,37 @@ public class GpsInfo extends Service implements LocationListener {
     }
 
     public void onLocationChanged(Location location) {
-        // TODO Auto-generated method stub
+        if(isGuid == true) {
+            Double latitude = location.getLatitude();
+            Double longitude = location.getLongitude();
+            Double destLatitude = route[routeIndex].getLatitude(pathIndex);
+            Double destLongitude = route[routeIndex].getLongitude(pathIndex);
+            float distance[] = new float[1];
+            Location.distanceBetween(destLatitude,destLongitude,latitude,longitude,distance);
+
+            String speech = route[routeIndex].getPath(pathIndex);
+            String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
+            msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
+
+            if((int) distance[0] < 10) {
+                pathIndex++;
+                if(pathIndex >= route[routeIndex].getSize()) {
+                    speech += "했습니다.";
+                    routeIndex++;
+                    pathIndex=0;
+                    if(routeIndex == routeLength) {
+                        speech += "길안내를 종료합니다.";
+                        isGuid = false;
+                    }
+                }
+                else {
+                    speech += "하세요.";
+                }
+                msg += speech;
+                tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
+            }
+            textView.setText(msg);
+        }
 
     }
 
