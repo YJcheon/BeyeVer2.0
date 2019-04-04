@@ -27,7 +27,7 @@ public class GpsInfo extends Service implements LocationListener {
     private Route[] route;
     private TextToSpeech tts;
     private final Context mContext;
-
+    private boolean isFindBus = false;
     // 현재 GPS 사용유무
     boolean isGPSEnabled = false;
 
@@ -219,9 +219,13 @@ public class GpsInfo extends Service implements LocationListener {
             String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
             msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
 
-            if((int) distance[0] < 10) {
+            if((int) distance[0] < 2000) {
+
                 pathIndex++;
                 if(pathIndex >= route[routeIndex].getSize()) {
+                    if(route[routeIndex].getType() == 2) {
+                        isFindBus = false;
+                    }
                     speech += "했습니다.";
                     routeIndex++;
                     pathIndex=0;
@@ -235,6 +239,19 @@ public class GpsInfo extends Service implements LocationListener {
                 }
                 msg += speech;
                 tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
+                if(route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    String busNo = route[routeIndex].getPath(pathIndex).split(" ")[1];
+                    Intent intent = new Intent(mContext,BusNumActivity.class);
+                    intent.putExtra("busnumber", busNo);
+                    mContext.startActivity(intent);
+
+                    isFindBus = true;
+                };
             }
             textView.setText(msg);
         }
