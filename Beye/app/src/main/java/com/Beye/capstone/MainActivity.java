@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
 
     private Intent intent;
     private SpeechRecognizer mRecognizer;
-    private TextToSpeech tts;
+    public TextToSpeech tts;
     private final int PERMISSION = 1;
     private GestureDetector mDetector;
     private Geocoder geocoder;
@@ -39,8 +39,7 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
 
         if ( Build.VERSION.SDK_INT >= 23 ){
             // 퍼미션 체크
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET,
-                    Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION},PERMISSION);
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET, Manifest.permission.RECORD_AUDIO, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.CAMERA},PERMISSION);
         }
         mDetector = new GestureDetector(this, new MyGestureListener());
 
@@ -55,7 +54,7 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
         mRecognizer=SpeechRecognizer.createSpeechRecognizer(this);
         mRecognizer.setRecognitionListener(listener);
 
-        findViewById(R.id.mainlayout).setOnTouchListener(new View.OnTouchListener() {
+        findViewById(R.id.mainLayout).setOnTouchListener(new View.OnTouchListener() {
 
 
             @Override
@@ -205,7 +204,13 @@ public class MainActivity extends AppCompatActivity implements OnInitListener{
             }
 
             if(addressList.isEmpty()) {
-                tts.speak("알 수 없는 장소입니다. 다시 터치해주세요.",TextToSpeech.QUEUE_FLUSH,null);
+                tts.speak("알 수 없는 장소입니다. 목적지를 말해주세요.",TextToSpeech.QUEUE_FLUSH,null);
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                mRecognizer.startListening(intent);
             }
             else {
                 Intent intent = new Intent(getApplicationContext(), RoadActivity.class);
