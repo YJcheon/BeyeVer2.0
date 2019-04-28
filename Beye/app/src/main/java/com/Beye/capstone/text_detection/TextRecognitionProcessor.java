@@ -98,16 +98,41 @@ public class TextRecognitionProcessor {
 	protected void onSuccess(@NonNull FirebaseVisionText results, @NonNull FrameMetadata frameMetadata, @NonNull GraphicOverlay graphicOverlay) {
 
         BusNumActivity bus = new BusNumActivity();
-
+		boolean hancheck=false;
+		if(bus.getBusNum().matches(".*[가-힣]")){
+			hancheck=true;
+		}
         graphicOverlay.clear();
         String resultText = results.getText();
         for (FirebaseVisionText.TextBlock block: results.getTextBlocks()) {
             for (FirebaseVisionText.Line line: block.getLines()) {
                 for (FirebaseVisionText.Element element: line.getElements()) {
                     String elementText = element.getText();
+<<<<<<< Updated upstream
+
+					if(hancheck==true){
+						if(bus.getBusNum().contains(elementText)){
+							BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
+							try {
+								Thread.sleep(3000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+					else if(hancheck==false) {
+						if (elementText.contains(bus.getBusNum())) {
+							BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
+							try {
+								Thread.sleep(3000);
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+=======
                     //System.out.println(elementText);
                     if(elementText.equals(bus.getBusNum())){
-                        System.out.println("i Fuckin found it");
                         BusNumActivity.tts.speak("전방에"+bus.getBusNum()+"번 버스입니다.",TextToSpeech.QUEUE_FLUSH,null);
                         try {
                             Thread.sleep(5000);
@@ -115,6 +140,7 @@ public class TextRecognitionProcessor {
                             e.printStackTrace();
                         }
                     }
+>>>>>>> Stashed changes
                 }
             }
         }

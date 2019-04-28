@@ -168,7 +168,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-                            String busNo = route[routeIndex].getPath(pathIndex).split(" ")[1];
+                            String busNo = route[routeIndex].getPath(pathIndex-1).split(" ")[1];
                             Intent intent = new Intent(getApplicationContext(),BusNumActivity.class);
                             intent.putExtra("busnumber", busNo);
                             startActivity(intent);
