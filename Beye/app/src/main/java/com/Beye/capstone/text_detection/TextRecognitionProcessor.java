@@ -108,6 +108,7 @@ public class TextRecognitionProcessor {
             for (FirebaseVisionText.Line line: block.getLines()) {
                 for (FirebaseVisionText.Element element: line.getElements()) {
                     String elementText = element.getText();
+<<<<<<< Updated upstream
 
 					if(hancheck==true){
 						if(bus.getBusNum().contains(elementText)){
@@ -129,6 +130,17 @@ public class TextRecognitionProcessor {
 							}
 						}
 					}
+=======
+                    //System.out.println(elementText);
+                    if(elementText.equals(bus.getBusNum())){
+                        BusNumActivity.tts.speak("전방에"+bus.getBusNum()+"번 버스입니다.",TextToSpeech.QUEUE_FLUSH,null);
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+>>>>>>> Stashed changes
                 }
             }
         }

@@ -1,27 +1,22 @@
 package com.Beye.capstone;
 
-import android.Manifest;
-import android.content.Intent;
 import android.graphics.Bitmap;
-import android.net.Uri;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.os.AsyncTask;
-import android.os.Environment;
-import android.provider.MediaStore;
 import android.speech.tts.TextToSpeech;
-import android.support.annotation.NonNull;
-import android.support.design.widget.FloatingActionButton;
-import android.support.v4.content.FileProvider;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -39,32 +34,30 @@ import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
 import com.google.api.services.vision.v1.model.TextAnnotation;
 
-
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.List;
+
 
 public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
     private static final Key key = new Key();
     private static final String CLOUD_VISION_API_KEY = key.getGoogleApiKey();
-    public static final String FILE_NAME = "temp.jpg";
     private static final String ANDROID_CERT_HEADER = "X-Android-Cert";
     private static final String ANDROID_PACKAGE_HEADER = "X-Android-Package";
     private static final int MAX_LABEL_RESULTS = 10;
-    private static final int MAX_DIMENSION = 1200;
 
     private static final String TAG = MainActivity.class.getSimpleName();
-    private static final int GALLERY_PERMISSIONS_REQUEST = 0;
-    private static final int GALLERY_IMAGE_REQUEST = 1;
-    public static final int CAMERA_PERMISSIONS_REQUEST = 2;
-    public static final int CAMERA_IMAGE_REQUEST = 3;
 
     private TextView mImageDetails;
     private ImageView mMainImage;
-    private TextToSpeech tts;
+    private static TextToSpeech tts;
     private GestureDetector mDetector;
+    private Camera mCamera;
+    private Camera.CameraInfo mCameraInfo;
+    private int mDisplayOrientation;
+    private SurfaceTexture mSurfaceTexture;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,16 +72,134 @@ public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         mMainImage = findViewById(R.id.main_image);
 
         findViewById(R.id.readLayout).setOnTouchListener(new View.OnTouchListener() {
-
-
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-
                 return mDetector.onTouchEvent(event);
             }
         });
+        mCamera = Camera.open();
+        Camera.Parameters params = mCamera.getParameters();
+        params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
 
+        List<Camera.Size> sizes = params.getSupportedPictureSizes();
+        Camera.Size optimalSize;
+        optimalSize = getOptimalPreviewSize(sizes, 800, 600);
+        params.setPictureSize(optimalSize.width, optimalSize.height);
+
+        mCamera.setParameters(params);
+        mCamera.startPreview();
+        mSurfaceTexture = new SurfaceTexture(10);
+        try {
+            mCamera.setPreviewTexture(mSurfaceTexture);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Camera.CameraInfo cameraInfo = new Camera.CameraInfo();
+        Camera.getCameraInfo(Camera.CameraInfo.CAMERA_FACING_BACK, cameraInfo);
+
+        mCameraInfo = cameraInfo;
+        mDisplayOrientation = this.getWindowManager().getDefaultDisplay().getRotation();
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mCamera != null) {
+            mCamera.release();        // release the camera for other applications
+            mCamera = null;
+        }
+    }
+    @Override
+    protected  void onDestroy() {
+        super.onDestroy();
+        if(tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts =null;
+        }
+    }
+
+    private Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int width, int height) {
+        final double ASPECT_TOLERANCE = 0.05;
+        double targetRatio = (double) width / height;
+        if (sizes == null)
+        { return null; }
+        Camera.Size optimalSize = null;
+        double minDiff = Double.MAX_VALUE;
+        int targetHeight = height;
+        // Try to find an size match aspect ratio and size
+        for (Camera.Size size : sizes) {
+            double ratio = (double) size.width / size.height;
+            if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE)
+            { continue; }
+            if (Math.abs(size.height - targetHeight) < minDiff) {
+                optimalSize = size;
+                minDiff = Math.abs(size.height - targetHeight);
+            } } // Cannot find the one match the aspect ratio, ignore the requirement
+        if (optimalSize == null) {
+            minDiff = Double.MAX_VALUE;
+            for (Camera.Size size : sizes) {
+                if (Math.abs(size.height - targetHeight) < minDiff) {
+                    optimalSize = size;
+                    minDiff = Math.abs(size.height - targetHeight);
+                } } }
+        Log.i("optimal size", ""+optimalSize.width+" x "+optimalSize.height);
+        return optimalSize;
+    }
+
+    private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+            //이미지의 너비와 높이 결정
+            int w = camera.getParameters().getPictureSize().width;
+            int h = camera.getParameters().getPictureSize().height;
+            int orientation = calculatePreviewOrientation(mCameraInfo, mDisplayOrientation);
+
+            //byte array를 bitmap으로 변환
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+
+            //이미지를 디바이스 방향으로 회전
+            Matrix matrix = new Matrix();
+            matrix.postRotate(orientation);
+            bitmap = Bitmap.createBitmap(bitmap, 0, 0, w, h, matrix, true);
+            mMainImage.setImageBitmap(bitmap);
+            callCloudVision(bitmap);
+        }
+    };
+        /**
+         * 안드로이드 디바이스 방향에 맞는 카메라 프리뷰를 화면에 보여주기 위해 계산합니다.
+         */
+        public int calculatePreviewOrientation(Camera.CameraInfo info, int rotation) {
+            int degrees = 0;
+
+            switch (rotation) {
+                case Surface.ROTATION_0:
+                    degrees = 0;
+                    break;
+                case Surface.ROTATION_90:
+                    degrees = 90;
+                    break;
+                case Surface.ROTATION_180:
+                    degrees = 180;
+                    break;
+                case Surface.ROTATION_270:
+                    degrees = 270;
+                    break;
+            }
+            int result;
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                result = (info.orientation + degrees) % 360;
+                result = (360 - result) % 360;  // compensate the mirror
+            } else {  // back-facing
+                result = (info.orientation - degrees + 360) % 360;
+            }
+
+            return result;
+        }
+
 
     public void onInit(int status) {
         tts.speak("글자 읽기 기능을 사용하시려면 한 번 터치해주세요.",TextToSpeech.QUEUE_FLUSH,null);
@@ -96,7 +207,6 @@ public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     }
 
     class MyGestureListener extends GestureDetector.SimpleOnGestureListener {
-
         @Override
         public boolean onDown(MotionEvent event) {
             return true;
@@ -105,81 +215,17 @@ public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         @Override
         public boolean onSingleTapConfirmed(MotionEvent event) {
             tts.speak("앞의 글자를 읽겠습니다. 잠시만 기다려주세요.",TextToSpeech.QUEUE_FLUSH,null);
-            startCamera();
-
+            mCamera.autoFocus (new Camera.AutoFocusCallback() {
+                public void onAutoFocus(boolean success, Camera camera) {
+                    if(success){
+                        mCamera.takePicture(null, null, mPicture);
+                    }
+                }
+            });
             return true;
         }
-
-
     }
 
-    public void startGalleryChooser() {
-        Intent intent = new Intent();
-        intent.setType("image/*");
-        intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "Select a photo"), GALLERY_IMAGE_REQUEST);
-    }
-
-    public void startCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        Uri photoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", getCameraFile());
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivityForResult(intent, CAMERA_IMAGE_REQUEST);
-    }
-
-    public File getCameraFile() {
-        File dir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        return new File(dir, FILE_NAME);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == GALLERY_IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
-            uploadImage(data.getData());
-        } else if (requestCode == CAMERA_IMAGE_REQUEST && resultCode == RESULT_OK) {
-            Uri photoUri = FileProvider.getUriForFile(this, getApplicationContext().getPackageName() + ".provider", getCameraFile());
-            uploadImage(photoUri);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(
-            int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case CAMERA_PERMISSIONS_REQUEST:
-                startCamera();
-                break;
-            case GALLERY_PERMISSIONS_REQUEST:
-                startGalleryChooser();
-                break;
-        }
-    }
-
-    public void uploadImage(Uri uri) {
-        if (uri != null) {
-            try {
-                // scale the image to save on bandwidth
-                Bitmap bitmap =
-                        scaleBitmapDown(
-                                MediaStore.Images.Media.getBitmap(getContentResolver(), uri),
-                                MAX_DIMENSION);
-
-                callCloudVision(bitmap);
-                mMainImage.setImageBitmap(bitmap);
-
-            } catch (IOException e) {
-                Log.d(TAG, "Image picking failed because " + e.getMessage());
-                Toast.makeText(this, "Something is wrong with that image. Pick a different one please.", Toast.LENGTH_LONG).show();
-            }
-        } else {
-            Log.d(TAG, "Image picker gave us a null image.");
-            Toast.makeText(this, "Something is wrong with that image. Pick a different one please.", Toast.LENGTH_LONG).show();
-        }
-    }
 
     private Vision.Images.Annotate prepareAnnotationRequest(Bitmap bitmap) throws IOException {
         HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
@@ -278,6 +324,7 @@ public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             if (activity != null && !activity.isFinishing()) {
                 TextView imageDetail = activity.findViewById(R.id.image_details);
                 imageDetail.setText(result);
+                tts.speak(result,TextToSpeech.QUEUE_FLUSH,null);
             }
         }
     }
@@ -296,35 +343,16 @@ public class ReadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
     }
 
-    private Bitmap scaleBitmapDown(Bitmap bitmap, int maxDimension) {
-
-        int originalWidth = bitmap.getWidth();
-        int originalHeight = bitmap.getHeight();
-        int resizedWidth = maxDimension;
-        int resizedHeight = maxDimension;
-
-        if (originalHeight > originalWidth) {
-            resizedHeight = maxDimension;
-            resizedWidth = (int) (resizedHeight * (float) originalWidth / (float) originalHeight);
-        } else if (originalWidth > originalHeight) {
-            resizedWidth = maxDimension;
-            resizedHeight = (int) (resizedWidth * (float) originalHeight / (float) originalWidth);
-        } else if (originalHeight == originalWidth) {
-            resizedHeight = maxDimension;
-            resizedWidth = maxDimension;
-        }
-        return Bitmap.createScaledBitmap(bitmap, resizedWidth, resizedHeight, false);
-    }
 
     private static String convertResponseToString(BatchAnnotateImagesResponse response) {
-        StringBuilder message = new StringBuilder("I found these things:\n\n");
+        StringBuilder message = new StringBuilder("");
 
         TextAnnotation text = response.getResponses().get(0).getFullTextAnnotation();
         if (text != null) {
             message.append(text.getText());
 
         } else {
-            message.append("nothing");
+            message.append("글자를 인식하지 못했습니다.");
         }
 
         return message.toString();
