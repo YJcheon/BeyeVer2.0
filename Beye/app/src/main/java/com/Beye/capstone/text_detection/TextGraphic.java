@@ -34,12 +34,13 @@ public class TextGraphic extends GraphicOverlay.Graphic {
   private final Paint rectPaint;
   private final Paint textPaint;
   private final FirebaseVisionText.Element text;
+  private final RectF rect;
 
   TextGraphic(GraphicOverlay overlay, FirebaseVisionText.Element text) {
     super(overlay);
 
     this.text = text;
-
+    rect = new RectF(text.getBoundingBox());
     rectPaint = new Paint();
     rectPaint.setColor(TEXT_COLOR);
     rectPaint.setStyle(Paint.Style.STROKE);
@@ -60,14 +61,18 @@ public class TextGraphic extends GraphicOverlay.Graphic {
     }
 
     // Draws the bounding box around the TextBlock.
-    RectF rect = new RectF(text.getBoundingBox());
-    rect.left = translateX(rect.left);
-    rect.top = translateY(rect.top);
-    rect.right = translateX(rect.right);
-    rect.bottom = translateY(rect.bottom);
-    canvas.drawRect(rect, rectPaint);
 
+
+    canvas.drawRect(rect, rectPaint);
     // Renders the text at the bottom of the box.
     canvas.drawText(text.getText(), rect.left, rect.bottom, textPaint);
+  }
+
+  public double getWidth() {
+    return translateX(rect.right) - translateX(rect.left);
+  }
+
+  public double getHeight() {
+    return translateY(rect.bottom) - translateY(rect.top);
   }
 }
