@@ -104,7 +104,6 @@ public class TextRecognitionProcessor {
 		if(check==5){
 			hancheck=true;
 		}
-<<<<<<< Updated upstream
 		graphicOverlay.clear();
 		String resultText = results.getText();
 		for (FirebaseVisionText.TextBlock block: results.getTextBlocks()) {
@@ -126,22 +125,6 @@ public class TextRecognitionProcessor {
 								} catch (InterruptedException e) {
 									e.printStackTrace();
 								}
-=======
-        graphicOverlay.clear();
-        String resultText = results.getText();
-        for (FirebaseVisionText.TextBlock block: results.getTextBlocks()) {
-            for (FirebaseVisionText.Line line: block.getLines()) {
-                for (FirebaseVisionText.Element element: line.getElements()) {
-                    String elementText = element.getText();
-
-					if(hancheck==true){
-						if(bus.getBusNum().contains(elementText)){
-							BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
-							try {
-								Thread.sleep(3000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
->>>>>>> Stashed changes
 							}
 						} else if (hancheck == false) {
 							if (elementText.contains(bus.getBusNum())) {
@@ -155,25 +138,9 @@ public class TextRecognitionProcessor {
 							}
 						}
 					}
-<<<<<<< Updated upstream
 				}
 			}
 		}
-=======
-                    //System.out.println(elementText);
-                    if(elementText.equals(bus.getBusNum())){
-                        BusNumActivity.tts.speak("전방에"+bus.getBusNum()+"번 버스입니다.",TextToSpeech.QUEUE_FLUSH,null);
-                        try {
-                            Thread.sleep(5000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-        }
->>>>>>> Stashed changes
-
 		List<FirebaseVisionText.TextBlock> blocks = results.getTextBlocks();
 		for (int i = 0; i < blocks.size(); i++) {
 			List<FirebaseVisionText.Line> lines = blocks.get(i).getLines();

@@ -209,50 +209,51 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             // API Value 는 API 호출 메소드 명을 따라갑니다.
             if(api == API.BUS_STATION_INFO) {
                 try {
-                    String busNo = route[routeIndex].getPath(pathIndex-1).split(" ")[1];
-                    String arsID = odsayData.getJson().getJSONObject("result").getString("arsID");
-                    if(arsID.contains("-")) {
-                        arsID = arsID.split("-")[0] + arsID.split("-")[1];
-                    }
-
-                    AsyncTask<String, Void, HttpResponse> asyncTask = new AsyncTask<String, Void, HttpResponse>() {
-
-                        @Override
-                        protected HttpResponse doInBackground(String... url) {
-                            HttpGet request = new HttpGet(url[0]);
-                            HttpResponse response = null;
-
-                            try {
-                                response = new DefaultHttpClient().execute(request);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            return response;
+                    if(odsayData.getJson().getJSONObject("result").getString("do").equals("서울특별시")) {
+                        String busNo = route[routeIndex].getPath(pathIndex - 1).split(" ")[1];
+                        String arsID = odsayData.getJson().getJSONObject("result").getString("arsID");
+                        if (arsID.contains("-")) {
+                            arsID = arsID.split("-")[0] + arsID.split("-")[1];
                         }
-                    };
 
-                    StringBuilder urlBuilder = new StringBuilder("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid"); /*URL*/
-                    urlBuilder.append("?" + URLEncoder.encode("ServiceKey","UTF-8") + "=" + key.getBusApiKey()); /*Service Key*/
-                    urlBuilder.append("&" + URLEncoder.encode("arsId","UTF-8") + "=" + URLEncoder.encode(arsID, "UTF-8")); /*정류소고유번호*/
-                    HttpResponse response = asyncTask.execute(urlBuilder.toString()).get();
-                    JSONArray r = XML.toJSONObject(EntityUtils.toString(response.getEntity())).getJSONObject("ServiceResult").getJSONObject("msgBody").getJSONArray("itemList");
+                        AsyncTask<String, Void, HttpResponse> asyncTask = new AsyncTask<String, Void, HttpResponse>() {
 
-                    Log.d("response", r.toString());
+                            @Override
+                            protected HttpResponse doInBackground(String... url) {
+                                HttpGet request = new HttpGet(url[0]);
+                                HttpResponse response = null;
 
-                    for(int i = 0; i < r.length(); i++) {
-                        if(r.getJSONObject(i).getString("rtNm").equals(busNo)) {
-                            String arrmsg = busNo + " 버스가 ";
-                            arrmsg += r.getJSONObject(i).getString("arrmsg1").split("후")[0];
-
-                            if(!arrmsg.contains("도착")) {
-                                arrmsg += "후 도착";
+                                try {
+                                    response = new DefaultHttpClient().execute(request);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                return response;
                             }
-                            arrmsg += "합니다.";
-                            tts.speak(arrmsg, TextToSpeech.QUEUE_ADD, null);
-                            break;
+                        };
+
+                        StringBuilder urlBuilder = new StringBuilder("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid"); /*URL*/
+                        urlBuilder.append("?" + URLEncoder.encode("ServiceKey", "UTF-8") + "=" + key.getBusApiKey()); /*Service Key*/
+                        urlBuilder.append("&" + URLEncoder.encode("arsId", "UTF-8") + "=" + URLEncoder.encode(arsID, "UTF-8")); /*정류소고유번호*/
+                        HttpResponse response = asyncTask.execute(urlBuilder.toString()).get();
+                        JSONArray r = XML.toJSONObject(EntityUtils.toString(response.getEntity())).getJSONObject("ServiceResult").getJSONObject("msgBody").getJSONArray("itemList");
+
+                        Log.d("response", r.toString());
+
+                        for (int i = 0; i < r.length(); i++) {
+                            if (r.getJSONObject(i).getString("rtNm").equals(busNo)) {
+                                String arrmsg = busNo + " 버스가 ";
+                                arrmsg += r.getJSONObject(i).getString("arrmsg1").split("후")[0];
+
+                                if (!arrmsg.contains("도착")) {
+                                    arrmsg += "후 도착";
+                                }
+                                arrmsg += "합니다.";
+                                tts.speak(arrmsg, TextToSpeech.QUEUE_ADD, null);
+                                break;
+                            }
                         }
                     }
-
                 } catch (JSONException e) {
                     e.printStackTrace();
                 } catch (UnsupportedEncodingException e) {
