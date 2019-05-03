@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.ActivityCompat;
@@ -27,14 +28,29 @@ import com.skt.Tmap.TMapData;
 import com.skt.Tmap.TMapPoint;
 import com.skt.Tmap.TMapTapi;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.XML;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
@@ -143,7 +159,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
                     msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
 
-                    if ((int) distance[0] < 13) {
+                    if ((int) distance[0] < 1000) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if(route[routeIndex].getType() == 2) {
@@ -163,6 +179,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         msg += speech;
                         tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
                         if(route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
+                            odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(),onResultCallbackListener);
                             try {
                                 Thread.sleep(5000);
                             } catch (InterruptedException e) {
@@ -172,8 +189,9 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             Intent intent = new Intent(getApplicationContext(),BusNumActivity.class);
                             intent.putExtra("busnumber", busNo);
                             startActivity(intent);
-
                             isFindBus = true;
+
+
                         }
                     }
 
@@ -189,7 +207,69 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         @Override
         public void onSuccess(ODsayData odsayData, API api) {
             // API Value 는 API 호출 메소드 명을 따라갑니다.
-            if (api == API.SEARCH_PUB_TRANS_PATH) {
+            if(api == API.BUS_STATION_INFO) {
+                try {
+                    String busNo = route[routeIndex].getPath(pathIndex-1).split(" ")[1];
+                    String arsID = odsayData.getJson().getJSONObject("result").getString("arsID");
+                    if(arsID.contains("-")) {
+                        arsID = arsID.split("-")[0] + arsID.split("-")[1];
+                    }
+
+                    AsyncTask<String, Void, HttpResponse> asyncTask = new AsyncTask<String, Void, HttpResponse>() {
+
+                        @Override
+                        protected HttpResponse doInBackground(String... url) {
+                            HttpGet request = new HttpGet(url[0]);
+                            HttpResponse response = null;
+
+                            try {
+                                response = new DefaultHttpClient().execute(request);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            return response;
+                        }
+                    };
+
+                    StringBuilder urlBuilder = new StringBuilder("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid"); /*URL*/
+                    urlBuilder.append("?" + URLEncoder.encode("ServiceKey","UTF-8") + "=" + key.getBusApiKey()); /*Service Key*/
+                    urlBuilder.append("&" + URLEncoder.encode("arsId","UTF-8") + "=" + URLEncoder.encode(arsID, "UTF-8")); /*정류소고유번호*/
+                    HttpResponse response = asyncTask.execute(urlBuilder.toString()).get();
+                    JSONArray r = XML.toJSONObject(EntityUtils.toString(response.getEntity())).getJSONObject("ServiceResult").getJSONObject("msgBody").getJSONArray("itemList");
+
+                    Log.d("response", r.toString());
+
+                    for(int i = 0; i < r.length(); i++) {
+                        if(r.getJSONObject(i).getString("rtNm").equals(busNo)) {
+                            String arrmsg = busNo + " 버스가 ";
+                            arrmsg += r.getJSONObject(i).getString("arrmsg1").split("후")[0];
+
+                            if(!arrmsg.contains("도착")) {
+                                arrmsg += "후 도착";
+                            }
+                            arrmsg += "합니다.";
+                            tts.speak(arrmsg, TextToSpeech.QUEUE_ADD, null);
+                            break;
+                        }
+                    }
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }  catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+
+            }
+            else if (api == API.SEARCH_PUB_TRANS_PATH) {
                 Log.d("path : ", odsayData.getJson().toString());
                 try {
                     if(odsayData.getJson().has("error")) {
@@ -240,6 +320,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                     destLon = subPath.getJSONObject(i).getDouble("endX");
                                     String startName = subPath.getJSONObject(i).getString("startName");
                                     String endName = subPath.getJSONObject(i).getString("endName");
+                                    String startStationID = subPath.getJSONObject(i).getString("startID");
 
                                     if (trafficType == 2) {
                                         String busNo = subPath.getJSONObject(i).getJSONArray("lane").getJSONObject(0).getString("busNo");
@@ -252,6 +333,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                     }
                                     route[i - 1].setDest(startName);
                                     route[i].addRoute(endName + "에 도착", destLat, destLon);
+                                    route[i].setStartStationID(startStationID);
                                 }
                                 lat = destLat;
                                 lon = destLon;
@@ -279,13 +361,21 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         // 호출 실패 시 실행
         @Override
         public void onError(int i, String s, API api) {
+            if(api == API.SEARCH_STATION) {
+            }
             if (api == API.SEARCH_PUB_TRANS_PATH) {
             }
         }
     };
+
         @Override
     protected  void onDestroy() {
         super.onDestroy();
+        if(tts != null) {
+            tts.stop();
+            tts.shutdown();
+            tts =null;
+        }
     }
 
     @Override

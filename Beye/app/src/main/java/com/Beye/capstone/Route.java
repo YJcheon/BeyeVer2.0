@@ -8,6 +8,7 @@ public class Route {
     private ArrayList<Double> latitude; //위도
     private ArrayList<Double> longitude;    //경도
     private String dest;
+    private String startStationID;
 
     public Route() {
         path = new ArrayList<String>();
@@ -35,6 +36,8 @@ public class Route {
         return longitude.get(index);
     }
 
+    public String getStartStationID() { return startStationID;}
+
     public void addRoute(String path, Double latitude, Double longitude) {
         addpath(path);
         addLatitude(latitude);
@@ -57,6 +60,7 @@ public class Route {
 
     }
 
+    public void setStartStationID(String startStationID) { this.startStationID = startStationID; }
 
     public void setType(int type) {
         this.type = type;
