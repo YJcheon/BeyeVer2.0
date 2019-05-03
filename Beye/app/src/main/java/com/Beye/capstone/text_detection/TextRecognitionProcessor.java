@@ -46,7 +46,7 @@ public class TextRecognitionProcessor {
 	private static final String TAG = "TextRecProc";
 
 	private final FirebaseVisionTextRecognizer detector;
-    TextToSpeech tts;
+	TextToSpeech tts;
 
 	// Whether we should ignore process(). This is usually caused by feeding input data faster than
 	// the model can handle.
@@ -97,53 +97,50 @@ public class TextRecognitionProcessor {
 
 	protected void onSuccess(@NonNull FirebaseVisionText results, @NonNull FrameMetadata frameMetadata, @NonNull GraphicOverlay graphicOverlay) {
 
-        BusNumActivity bus = new BusNumActivity();
+		BusNumActivity bus = new BusNumActivity();
 		boolean hancheck=false;
-		if(bus.getBusNum().matches(".*[가-힣]")){
+		char[] temp = bus.getBusNum().toCharArray();
+		int check = Character.getType(temp[0]);
+		if(check==5){
 			hancheck=true;
 		}
-        graphicOverlay.clear();
-        String resultText = results.getText();
-        for (FirebaseVisionText.TextBlock block: results.getTextBlocks()) {
-            for (FirebaseVisionText.Line line: block.getLines()) {
-                for (FirebaseVisionText.Element element: line.getElements()) {
-                    String elementText = element.getText();
-<<<<<<< Updated upstream
+		graphicOverlay.clear();
+		String resultText = results.getText();
+		for (FirebaseVisionText.TextBlock block: results.getTextBlocks()) {
+			for (FirebaseVisionText.Line line: block.getLines()) {
+				for (FirebaseVisionText.Element element: line.getElements()) {
+					String elementText = element.getText();
+					TextGraphic textGraphic = new TextGraphic(graphicOverlay, element);
+					double w = textGraphic.getWidth();
+					double h = textGraphic.getHeight();
 
-					if(hancheck==true){
-						if(bus.getBusNum().contains(elementText)){
-							BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
-							try {
-								Thread.sleep(3000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
+					if(w>150 || h>80) {
+
+						if (hancheck == true) {
+							if (bus.getBusNum().contains(elementText)) {
+								BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
+
+								try {
+									Thread.sleep(3000);
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+						} else if (hancheck == false) {
+							if (elementText.contains(bus.getBusNum())) {
+								BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
+
+								try {
+									Thread.sleep(3000);
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
 							}
 						}
 					}
-					else if(hancheck==false) {
-						if (elementText.contains(bus.getBusNum())) {
-							BusNumActivity.tts.speak("전방에" + bus.getBusNum() + "번 버스입니다.", TextToSpeech.QUEUE_FLUSH, null);
-							try {
-								Thread.sleep(3000);
-							} catch (InterruptedException e) {
-								e.printStackTrace();
-							}
-						}
-					}
-=======
-                    //System.out.println(elementText);
-                    if(elementText.equals(bus.getBusNum())){
-                        BusNumActivity.tts.speak("전방에"+bus.getBusNum()+"번 버스입니다.",TextToSpeech.QUEUE_FLUSH,null);
-                        try {
-                            Thread.sleep(5000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
->>>>>>> Stashed changes
-                }
-            }
-        }
+				}
+			}
+		}
 
 		List<FirebaseVisionText.TextBlock> blocks = results.getTextBlocks();
 		for (int i = 0; i < blocks.size(); i++) {
@@ -151,7 +148,7 @@ public class TextRecognitionProcessor {
 			for (int j = 0; j < lines.size(); j++) {
 				List<FirebaseVisionText.Element> elements = lines.get(j).getElements();
 				for (int k = 0; k < elements.size(); k++) {
-                    GraphicOverlay.Graphic textGraphic = new TextGraphic(graphicOverlay, elements.get(k));
+					GraphicOverlay.Graphic textGraphic = new TextGraphic(graphicOverlay, elements.get(k));
 					graphicOverlay.add(textGraphic);
 
 
