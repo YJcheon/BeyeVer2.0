@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "808387201408",
+    "firebase_url": "https://beye-6ba65.firebaseio.com",
+    "project_id": "beye-6ba65",
+    "storage_bucket": "beye-6ba65.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:808387201408:android:1f708873f0d6ee61",
+        "android_client_info": {
+          "package_name": "com.Beye.capstone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "808387201408-rdvu9a5jvcbp706nnrsiis3kkkkthpso.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPkVc8H9_4DpdgcpY0K-ABK7WM2dKJw-o"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
