@@ -257,7 +257,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                     new Handler().postDelayed(new Runnable() {
                                         @Override
                                         public void run() {
-                                            tts.speak("곧" + busNo + "버스가 도착합니다.",TextToSpeech.QUEUE_ADD,null);
+                                            tts.speak("곧 " + busNo + "버스가 도착합니다.",TextToSpeech.QUEUE_ADD,null);
                                         }
                                     },time * 60000);
                                 }
