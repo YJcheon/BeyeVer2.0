@@ -3,11 +3,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity" >
+    android:orientation="vertical"
+    tools:context=".MainActivity">
 
     <org.opencv.android.JavaCameraView
+        android:id="@+id/activity_surface_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/activity_surface_view" />
+        android:layout_height="320dp" />
+
+    <TextView
+        android:id="@+id/cv_check"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center"
+        android:gravity="center_vertical|right"
+        android:text="도로"
+        android:textColor="#ff000000"
+        android:textSize="24sp" />
 
 </LinearLayout>
