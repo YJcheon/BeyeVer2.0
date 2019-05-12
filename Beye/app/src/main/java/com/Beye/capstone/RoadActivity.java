@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.ActivityCompat;
@@ -243,13 +244,24 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         for (int i = 0; i < r.length(); i++) {
                             if (r.getJSONObject(i).getString("rtNm").equals(busNo)) {
                                 String arrmsg = busNo + " 버스가 ";
-                                arrmsg += r.getJSONObject(i).getString("arrmsg1").split("후")[0];
+                                String arrmsg1 = r.getJSONObject(i).getString("arrmsg1");
+                                arrmsg += arrmsg1.split("후")[0];
 
                                 if (!arrmsg.contains("도착")) {
                                     arrmsg += "후 도착";
                                 }
                                 arrmsg += "합니다.";
                                 tts.speak(arrmsg, TextToSpeech.QUEUE_ADD, null);
+                                if (arrmsg1.contains("분")) {
+                                    int time = Integer.parseInt(arrmsg1.split("분")[0]);
+                                    new Handler().postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            tts.speak("곧 " + busNo + "버스가 도착합니다.",TextToSpeech.QUEUE_ADD,null);
+                                        }
+                                    },time * 60000);
+                                }
+
                                 break;
                             }
                         }
