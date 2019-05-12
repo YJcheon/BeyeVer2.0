@@ -256,7 +256,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         Log.d(this.getClass().getName(), "input oncameraFrame");
         origin = inputFrame.rgba();
         origin.copyTo(mRgba);
-        //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
+        /*//if ( matResult != null ) matResult.release(); fix 2018. 8. 18
 
         if ( matResult == null )
             matResult = new Mat(origin.rows(), origin.cols(), origin.type());
@@ -341,8 +341,8 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
         MatrixTime(50);
-
-        return mRgba;
+        */
+        return origin;
     }
     LocationCallback locationCallback = new LocationCallback() {
         @Override
