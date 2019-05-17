@@ -4,22 +4,7 @@
 
 using namespace cv;
 
-class WatershedSegmenter {
-private:
-    cv::Mat markers;
-public:
-    void setMarkers(cv::Mat& markerImage)
-    {
-        markerImage.convertTo(markers, CV_32S);
-    }
 
-    cv::Mat process(cv::Mat &image)
-    {
-        cv::watershed(image, markers);
-        markers.convertTo(markers, CV_8U);
-        return markers;
-    }
-};
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_Beye_capstone_RoadActivity_ConvertRGBtoGray(JNIEnv *env, jobject instance,
@@ -273,6 +258,22 @@ Java_com_Beye_capstone_RoadActivity_Watershed(JNIEnv *env, jobject instance,
                                                         jlong matAddrInput,
                                                         jlong matAddrInput1,
                                                         jlong matAddrResult){
+    class WatershedSegmenter {
+    private:
+        cv::Mat markers;
+    public:
+        void setMarkers(cv::Mat& markerImage)
+        {
+            markerImage.convertTo(markers, CV_32S);
+        }
+
+        cv::Mat process(cv::Mat &image)
+        {
+            cv::watershed(image, markers);
+            markers.convertTo(markers, CV_8U);
+            return markers;
+        }
+    };
     Mat &matInput = *(Mat *) matAddrInput;
     Mat &matResult = *(Mat *) matAddrInput;
     cv::Mat blank(matInput.size(), CV_8U, cv::Scalar(0xFF));
@@ -325,19 +326,13 @@ Java_com_Beye_capstone_RoadActivity_Watershed(JNIEnv *env, jobject instance,
     //Create watershed segmentation object
     WatershedSegmenter segmenter;
     segmenter.setMarkers(markers);
-    cv::Mat wshedMask = segmenter.process(matInput);
-    cv::Mat mask;
+    Mat wshedMask = segmenter.process(matInput);
+    Mat mask;
     Mat eroding;
 
     convertScaleAbs(wshedMask, mask, 1, 0);
-    double thresh = threshold(mask, mask, 1, 255, THRESH_BINARY);
     erode(matInput, eroding, Mat(), Point(1, 1), 1);
 
-
-    // Uncomment the line below to select a different bounding box
-    // bbox = selectROI(frame, false);
-    // Display bounding box.
-    //imshow("erode", eroding);
     bitwise_and(matInput, eroding, dest, mask);
     dest.convertTo(dest, CV_8U);
     cvtColor(dest, matResult, COLOR_RGBA2GRAY);

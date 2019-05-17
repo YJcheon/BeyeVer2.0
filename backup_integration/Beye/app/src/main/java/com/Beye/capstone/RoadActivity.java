@@ -65,7 +65,8 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-
+import java.util.TimerTask;
+import java.util.Timer;
 
 
 public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnInitListener,CameraBridgeViewBase.CvCameraViewListener2 {
@@ -136,6 +137,9 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public boolean externflagcr = false;
     public boolean externflagbs = false;
     public boolean externflagtick = false;
+    public boolean ttsflag = true;
+    public boolean obflag = false;
+    public String busNo;
     public void MatrixTime(int delayTime){
         long saveTime = System.currentTimeMillis();
         long currTime = 0;
@@ -166,7 +170,14 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     protected void onCreate(Bundle savedInstanceState )  {
         super.onCreate(savedInstanceState);
 
-
+        TimerTask tt = new TimerTask(){
+            @Override
+            public void run() {
+                ttsflag = false;
+            }
+        };
+        Timer timer = new Timer();
+        timer.schedule(tt, 0, 3000);
         setContentView(R.layout.activity_road);
         textView = (TextView)findViewById(R.id.sttResult);
         textView.setMovementMethod(new ScrollingMovementMethod());
@@ -253,10 +264,12 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+
+
         Log.d(this.getClass().getName(), "input oncameraFrame");
         origin = inputFrame.rgba();
         origin.copyTo(mRgba);
-        /*//if ( matResult != null ) matResult.release(); fix 2018. 8. 18
+        //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
 
         if ( matResult == null )
             matResult = new Mat(origin.rows(), origin.cols(), origin.type());
@@ -275,9 +288,9 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());
         BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
-        Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
+        //Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
         Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());
-        tickflag = Calfortick(origin.getNativeObjAddr());
+        //tickflag = Calfortick(origin.getNativeObjAddr());
         //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
         if(CalforCr(watershed.getNativeObjAddr())){
             noisehandiling++;
@@ -294,7 +307,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         if(noisehandiling <5 && crossflag){
             crossflag = false;
         }
-        if(Calculateob(watershed.getNativeObjAddr())){
+        if(Calculateob(matResult.getNativeObjAddr())){
             errorhandling++;
         }
         else if (errorhandling > 5) {
@@ -302,6 +315,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
         else {
             errorhandling--;
+            obflag = false;
         }
         if(Calforst(edge.getNativeObjAddr())){
             stairhandling++;
@@ -321,27 +335,46 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         else{
             downhandling--;
         }
-        if(stairhandling>3 && crossflag && !externflagcr &&!tickflag) {
-            Log.d(this.getClass().getName(), "opencvob");
+        if(stairhandling>5 && !crossflag && !externflagcr &&!tickflag&&!ttsflag&& !obflag) {
+            String obmsg = "상향계단입니다";
+            tts.speak(obmsg, TextToSpeech.QUEUE_ADD, null);
+            ttsflag = true;
         }
-        else if(stairhandling>3 && crossflag && externflagcr &&!tickflag){
+        else if(stairhandling>3 && crossflag && externflagcr &&!tickflag&&!ttsflag){
+            String crmsg = "횡단보도입니다";
+            tts.speak(crmsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvcr");
+            ttsflag = true;
         }
-        else if(errorhandling>5 && !externflagbs &&!tickflag){
-            Log.d(this.getClass().getName(), "opencvup");
+        else if(errorhandling>5 && !externflagbs &&!tickflag&&!ttsflag){
+            String upmsg = "장애물입니다";
+            tts.speak(upmsg, TextToSpeech.QUEUE_ADD, null);
+            Log.d(this.getClass().getName(), "opencvob");
+            ttsflag = true;
+            obflag = true;
         }
-        else if(errorhandling>5 && externflagbs &&!tickflag){
+        else if(errorhandling>5 && externflagbs &&!tickflag&&!ttsflag){
+            String bsmsg = "버스정류장입니다";
+            tts.speak(bsmsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvbs");
+            Intent intent = new Intent(getApplicationContext(), BusNumActivity.class);
+            intent.putExtra("busnumber", busNo);
+            startActivity(intent);
+            isFindBus = true;
+            externflagbs = false;
         }
-        else if(externflagtick && tickflag && errorhandling>5){
+        else if(externflagtick && tickflag && errorhandling>5&&!ttsflag){
+            String timsg = "개찰구입니다";
+            tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvtick");
+            ttsflag = true;
         }
         else{
             Log.d(this.getClass().getName(), "opencvr");
         }
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
         MatrixTime(50);
-        */
+
         return origin;
     }
     LocationCallback locationCallback = new LocationCallback() {
@@ -375,7 +408,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     if ((int) distance[0] < 1000) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
-                            if(route[routeIndex].getType() == 2) {
+                            if (route[routeIndex].getType() == 2) {
                                 isFindBus = false;
                             }
 
@@ -391,21 +424,18 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         }
                         msg += speech;
                         tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
-                        if(route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
-                            odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(),onResultCallbackListener);
+                        if (route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
+                            externflagbs = true;
+                            odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
                             try {
                                 Thread.sleep(5000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
-                            String busNo = route[routeIndex].getPath(pathIndex-1).split(" ")[1];
-                            Intent intent = new Intent(getApplicationContext(),BusNumActivity.class);
-                            intent.putExtra("busnumber", busNo);
-                            startActivity(intent);
-                            isFindBus = true;
-
-
+                            busNo = route[routeIndex].getPath(pathIndex - 1).split(" ")[1];
                         }
+
+
                     }
 
                     textView.setText(msg);

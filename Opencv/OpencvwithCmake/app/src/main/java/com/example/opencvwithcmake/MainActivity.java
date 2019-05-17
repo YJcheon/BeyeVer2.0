@@ -193,6 +193,7 @@ public class MainActivity extends AppCompatActivity
         Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());
         Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         blurforcheck = new Mat(blur.rows(), blur.cols(), blur.type());
+        blur.copyTo(blurforcheck);
         ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());
         BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
@@ -215,7 +216,7 @@ public class MainActivity extends AppCompatActivity
         if(noisehandiling <5 && crossflag){
             crossflag = false;
         }
-        if(Calculateob(watershed.getNativeObjAddr())){
+        if(Calculateob(matResult.getNativeObjAddr())){
             errorhandling++;
         }
         else if (errorhandling > 5) {
@@ -281,7 +282,7 @@ public class MainActivity extends AppCompatActivity
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
         MatrixTime(50);
 
-        return origin;
+        return mRgba;
     }
 
     //여기서부턴 퍼미션 관련 메소드
