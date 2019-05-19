@@ -160,7 +160,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
                     msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
 
-                    if ((int) distance[0] < 1000) {
+                    if ((int) distance[0] < 15 || pathIndex == 0 || (route[routeIndex].getType() == 2 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if(route[routeIndex].getType() == 2) {
