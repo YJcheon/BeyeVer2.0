@@ -16,7 +16,8 @@
         <org.opencv.android.JavaCameraView
             android:id="@+id/activity_surface_view"
             android:layout_width="match_parent"
-            android:layout_height="320dp" />
+            android:layout_height="320dp"
+            android:orientation="horizontal" />
 
         <TextView
             android:id="@+id/sttResult"

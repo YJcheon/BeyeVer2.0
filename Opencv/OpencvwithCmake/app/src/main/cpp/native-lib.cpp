@@ -281,7 +281,7 @@ Java_com_example_opencvwithcmake_MainActivity_Watershed(JNIEnv *env, jobject ins
                                                         jlong matAddrInput1,
                                                         jlong matAddrResult){
     Mat &matInput = *(Mat *) matAddrInput;
-    Mat &matResult = *(Mat *) matAddrInput;
+    Mat &matResult = *(Mat *) matResult;
     cv::Mat blank(matInput.size(), CV_8U, cv::Scalar(0xFF));
     cv::Mat dest;
     Mat &magic2 = *(Mat *) matAddrInput1;
@@ -315,15 +315,6 @@ Java_com_example_opencvwithcmake_MainActivity_Watershed(JNIEnv *env, jobject ins
 
     // Create markers image
     Mat markers(matInput.size(), CV_8U, cv::Scalar(-1));
-    //Rect(topleftcornerX, topleftcornerY, width, height);
-    //top rectangle
-    markers(Rect(0, 0, matInput.cols, 5)) = Scalar::all(1);
-    //bottom rectangle
-    markers(Rect(0, matInput.rows - 5, matInput.cols, 5)) = Scalar::all(1);
-    //left rectangle
-    markers(Rect(0, 0, 5, matInput.rows)) = Scalar::all(1);
-    //right rectangle
-    markers(Rect(matInput.cols - 5, 0, 5, matInput.rows)) = Scalar::all(1);
     //centre rectangle
     int centreW = matInput.cols / 2;
     int centreH = matInput.rows / 4;
@@ -341,13 +332,10 @@ Java_com_example_opencvwithcmake_MainActivity_Watershed(JNIEnv *env, jobject ins
     erode(matInput, eroding, Mat(), Point(1, 1), 1);
 
 
-    // Uncomment the line below to select a different bounding box
-    // bbox = selectROI(frame, false);
-    // Display bounding box.
-    //imshow("erode", eroding);
     bitwise_and(matInput, eroding, dest, mask);
     dest.convertTo(dest, CV_8U);
     cvtColor(dest, matResult, COLOR_RGBA2GRAY);
+    matResult = dest;
 }
 extern "C"
 JNIEXPORT bool JNICALL
