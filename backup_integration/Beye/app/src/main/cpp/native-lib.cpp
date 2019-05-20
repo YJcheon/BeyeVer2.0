@@ -201,7 +201,7 @@ Java_com_Beye_capstone_RoadActivity_Calforst(JNIEnv *env, jobject instance,
         int x = matInput.cols/2;
         if (matInput.at<uchar>(y, x) == 255 && matInput.at<uchar>(y - 1, x) != 255) {
             if(matInput.at<uchar>(y, x-2) == 255 && matInput.at<uchar>(y, x+2) == 255){
-                if(matInput.at<uchar>(y, x-1) = 255 && matInput.at<uchar>(y, x+1) == 255){
+                if(matInput.at<uchar>(y, x-1) == 255 && matInput.at<uchar>(y, x+1) == 255){
                     count++;
                 }
             }
@@ -276,9 +276,12 @@ Java_com_Beye_capstone_RoadActivity_Watershed(JNIEnv *env, jobject instance,
     };
     Mat &matInput = *(Mat *) matAddrInput;
     Mat &matResult = *(Mat *) matAddrInput;
+    cvtColor(matResult,matResult, COLOR_RGBA2RGB);
+    cvtColor(matInput, matInput, COLOR_RGBA2RGB);
     cv::Mat blank(matInput.size(), CV_8U, cv::Scalar(0xFF));
     cv::Mat dest;
     Mat &magic2 = *(Mat *) matAddrInput1;
+    cvtColor(magic2, magic2, COLOR_RGBA2RGB);
     int xmar = 0;
     int marindex = 0;
     int xmax=0;
@@ -335,7 +338,7 @@ Java_com_Beye_capstone_RoadActivity_Watershed(JNIEnv *env, jobject instance,
 
     bitwise_and(matInput, eroding, dest, mask);
     dest.convertTo(dest, CV_8U);
-    cvtColor(dest, matResult, COLOR_RGBA2GRAY);
+    cvtColor(dest, matResult, COLOR_RGB2GRAY);
 }
 extern "C"
 JNIEXPORT bool JNICALL
@@ -368,12 +371,12 @@ Java_com_Beye_capstone_RoadActivity_Calfortick(JNIEnv *env, jobject instance,
     Mat dotblocks = contrastImage.clone();
     for (int x = 0; x < contrastImage.cols; x++) {
         for (int y = 0; y < contrastImage.rows; y++) {
-            if (contrastImage.at<Vec3b>(y, x)[0] < 150 && contrastImage.at<Vec3b>(y, x)[1] > 160 && contrastImage.at<Vec3b>(y, x)[2] > 160) {
+            if (contrastImage.at<Vec3b>(y, x)[0] < 150 && contrastImage.at<Vec3b>(y, x)[1] > 160 &&
+                contrastImage.at<Vec3b>(y, x)[2] > 160) {
                 dotblocks.at<Vec3b>(y, x)[0] = 0;
                 dotblocks.at<Vec3b>(y, x)[1] = 255;
                 dotblocks.at<Vec3b>(y, x)[2] = 255;
-            }
-            else {
+            } else {
                 dotblocks.at<Vec3b>(y, x)[0] = 0;
                 dotblocks.at<Vec3b>(y, x)[1] = 0;
                 dotblocks.at<Vec3b>(y, x)[2] = 0;
@@ -381,26 +384,39 @@ Java_com_Beye_capstone_RoadActivity_Calfortick(JNIEnv *env, jobject instance,
 
         }
     }
-    int bottomyellowcounter=0;
+    int bottomyellowcounter = 0;
     int topyellowcounter = 0;
-    for (int x = contrastImage.cols/2; x < contrastImage.cols; x++) {
-        for (int y = contrastImage.rows/2; y < contrastImage.rows; y++) {
-            if ((dotblocks.at<Vec3b>(y, x)[0] + dotblocks.at<Vec3b>(y, x)[1] + dotblocks.at<Vec3b>(y, x)[2]) > 450) {
+    for (int x = contrastImage.cols / 2; x < contrastImage.cols; x++) {
+        for (int y = contrastImage.rows / 2; y < contrastImage.rows; y++) {
+            if ((dotblocks.at<Vec3b>(y, x)[0] + dotblocks.at<Vec3b>(y, x)[1] +
+                 dotblocks.at<Vec3b>(y, x)[2]) > 450) {
                 bottomyellowcounter++;
             }
         }
     }
-    for (int x = 0; x < contrastImage.cols/2; x++) {
-        for (int y = 0; y < contrastImage.rows/2; y++) {
-            if ((dotblocks.at<Vec3b>(y, x)[0] + dotblocks.at<Vec3b>(y, x)[1] + dotblocks.at<Vec3b>(y, x)[2]) > 450) {
+    for (int x = 0; x < contrastImage.cols / 2; x++) {
+        for (int y = 0; y < contrastImage.rows / 2; y++) {
+            if ((dotblocks.at<Vec3b>(y, x)[0] + dotblocks.at<Vec3b>(y, x)[1] +
+                 dotblocks.at<Vec3b>(y, x)[2]) > 450) {
                 topyellowcounter++;
             }
         }
     }
-    if (topyellowcounter > bottomyellowcounter ) {
+    if (topyellowcounter > bottomyellowcounter) {
         return true;
-    }
-    else{
+    } else {
         return false;
     }
 }
+    extern "C"
+    JNIEXPORT bool JNICALL
+    Java_com_Beye_capstone_RoadActivity_Convert90(JNIEnv *env, jobject instance,
+                                                   jlong matAddrInput){
+        Mat &origin = *(Mat *) matAddrInput;
+        Mat resizeImage;
+        resize(origin, resizeImage, Size(300,300));
+        Point center(300 / 2, 300 / 2); // 이미지 중심
+        Mat matRotation = getRotationMatrix2D(center, -90, 1); //-90 : 시계방향 90도
+        warpAffine(resizeImage, resizeImage, matRotation, resizeImage.size()); // 회전
+        origin = resizeImage.clone();
+    }
