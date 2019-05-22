@@ -2,15 +2,10 @@ package com.Beye.capstone;
 
 import android.Manifest;
 import android.content.Intent;
-import android.annotation.TargetApi;
-import android.content.DialogInterface;
-import android.support.annotation.NonNull;
-import android.support.v4.content.ContextCompat;
 import java.lang.String;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.ActivityCompat;
@@ -19,7 +14,6 @@ import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.SurfaceView;
-import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -48,8 +42,10 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
+import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -269,9 +265,12 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
         Log.d(this.getClass().getName(), "input oncameraFrame");
         origin = inputFrame.rgba();
+        Mat originT = origin.t();
+        Core.flip(originT, originT, 1);
+        Imgproc.resize(originT,originT,origin.size());
+        origin = originT;
         origin.copyTo(mRgba);
         //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
-
         if ( matResult == null )
             matResult = new Mat(origin.rows(), origin.cols(), origin.type());
         mRgba.copyTo(origin);
@@ -282,7 +281,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         closing = new Mat(origin.rows(), origin.cols(), origin.type());
         watershed = new Mat(origin.rows(), origin.cols(), origin.type());
         //blur for computer vision first.
-        Convert90(origin.getNativeObjAddr());
+        //Convert90(origin.getNativeObjAddr());
         ConvertRGBtoGray(origin.getNativeObjAddr(), blur.getNativeObjAddr());
         Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());
         Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());
@@ -377,7 +376,8 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
         MatrixTime(50);
 
-        return origin;
+
+        return originT;
     }
     LocationCallback locationCallback = new LocationCallback() {
         @Override

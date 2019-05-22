@@ -29,7 +29,8 @@
         <meta-data
             android:name="com.google.firebase.ml.vision.DEPENDENCIES"
             android:value="ocr" />
-        <activity android:name=".RoadActivity"></activity>
+        <activity android:name=".RoadActivity"
+            ></activity>
         <activity android:name=".ReadActivity"
             android:theme="@style/AppTheme.NoActionBar">
 
