@@ -112,6 +112,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private Mat mRgba = new Mat(120, 160, CvType.CV_8UC4);
     private Mat mGray = new Mat(120, 160, CvType.CV_8UC4);
 
+    public native void Convert90(long matAddrInput);
     public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
     public native void Gaussian(long matAddrInput, long matAddrResult);
     public native void BinaryDilate(long matAddrInput, long matAddrResult);
@@ -281,6 +282,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         closing = new Mat(origin.rows(), origin.cols(), origin.type());
         watershed = new Mat(origin.rows(), origin.cols(), origin.type());
         //blur for computer vision first.
+        Convert90(origin.getNativeObjAddr());
         ConvertRGBtoGray(origin.getNativeObjAddr(), blur.getNativeObjAddr());
         Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());
         Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());
@@ -288,7 +290,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());
         BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
-        //Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
+        Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
         Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());
         //tickflag = Calfortick(origin.getNativeObjAddr());
         //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
