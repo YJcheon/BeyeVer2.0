@@ -1,4 +1,4 @@
-package com.Beye.capstone;
+﻿package com.Beye.capstone;
 
 import android.Manifest;
 import android.content.Intent;
@@ -266,130 +266,171 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         Log.d(this.getClass().getName(), "input stop");
     }
 
-    @Override
-    public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-
-
-        Log.d(this.getClass().getName(), "input oncameraFrame");
-        origin = inputFrame.rgba();
-        Mat originT = origin.t();
-        Core.flip(originT, originT, 1);
-        Imgproc.resize(originT,originT,origin.size());
-        origin = originT;
-        origin.copyTo(mRgba);
-
-        //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
-        if ( matResult == null )
-            matResult = new Mat(origin.rows(), origin.cols(), origin.type());
-        mRgba.copyTo(origin);
-        blur = new Mat(origin.rows(), origin.cols(), origin.type());
-        edge = new Mat(origin.rows(), origin.cols(), origin.type());
-        binary = new Mat(origin.rows(), origin.cols(), origin.type());
-        label = new Mat(origin.rows(), origin.cols(), origin.type());
-        closing = new Mat(origin.rows(), origin.cols(), origin.type());
-        //Imgproc.cvtColor(origin,origin,Imgproc.COLOR_RGBA2RGB);
-        watershed = new Mat(origin.rows(), origin.cols(), origin.type());
-        //blur for computer vision first.
-        ConvertRGBtoGray(origin.getNativeObjAddr(), blur.getNativeObjAddr());
-        Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());
-        Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());
-        blurforcheck = new Mat(blur.rows(), blur.cols(), blur.type());
-        ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());
-        BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());
-        BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
-        Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
-        Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());
-        //tickflag = Calfortick(origin.getNativeObjAddr());
-        //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
-
-        if(CalforCr(watershed.getNativeObjAddr())){
-            noisehandiling++;
-            if(noisehandiling > 7){
-                crossflag = true;
-            }
-        }
-        else if (noisehandiling > 7) {
-            noisehandiling = 7;
-        }
-        else if(noisehandiling>0){
-            noisehandiling--;
-        }
-        if(noisehandiling <5 && crossflag){
-            crossflag = false;
-        }
-        if(Calculateob(matResult.getNativeObjAddr())){
-            errorhandling++;
-        }
-        else if (errorhandling > 5) {
-            errorhandling = 5;
-        }
-        else {
-            errorhandling--;
-            obflag = false;
-        }
-        if(Calforst(edge.getNativeObjAddr())){
-            stairhandling++;
-        }
-        else if (stairhandling > 7) {
-            stairhandling = 7;
-        }
-        else {
-            stairhandling--;
-        }
-        if(Calfordown(edge.getNativeObjAddr())){
-            downhandling++;
-        }
-        else if(downhandling>10){
-            downhandling=10;
-        }
-        else{
-            downhandling--;
-        }
-        if(stairhandling>5 && !crossflag && !externflagcr &&!tickflag&&!ttsflag&& !obflag) {
-            String obmsg = "상향계단입니다";
-            tts.speak(obmsg, TextToSpeech.QUEUE_ADD, null);
-            ttsflag = true;
-        }
-        else if(stairhandling>3 && crossflag && externflagcr &&!tickflag&&!ttsflag){
-            String crmsg = "횡단보도입니다";
-            tts.speak(crmsg, TextToSpeech.QUEUE_ADD, null);
-            Log.d(this.getClass().getName(), "opencvcr");
-            ttsflag = true;
-        }
-        else if(errorhandling>5 && !externflagbs &&!tickflag&&!ttsflag){
-            String upmsg = "장애물입니다";
-            tts.speak(upmsg, TextToSpeech.QUEUE_ADD, null);
-            Log.d(this.getClass().getName(), "opencvob");
-            ttsflag = true;
-            obflag = true;
-        }
-        else if(errorhandling>5 && externflagbs &&!tickflag&&!ttsflag){
-            String bsmsg = "버스정류장입니다";
-            tts.speak(bsmsg, TextToSpeech.QUEUE_ADD, null);
-            Log.d(this.getClass().getName(), "opencvbs");
-            Intent intent = new Intent(getApplicationContext(), BusNumActivity.class);
-            intent.putExtra("busnumber", busNo);
-            startActivity(intent);
-            isFindBus = true;
-            externflagbs = false;
-        }
-        else if(externflagtick && tickflag && errorhandling>5&&!ttsflag&& !drflag){
-            String timsg = "개찰구입니다";
-            tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
-            Log.d(this.getClass().getName(), "opencvtick");
-            tgflag =true;
-            ttsflag = true;
-        }
-        else{
-            Log.d(this.getClass().getName(), "opencvr");
-        }
-        label = new Mat(matResult.rows(), matResult.cols(), origin.type());
-        MatrixTime(50);
-
-
-        return originT;
-
-    }
+    public Mat steptowatershed(Mat img)                                                                                                                                              
+ {                                                                                                                                                                                
+     Mat threeChannel = new Mat();                                                                                                                                                
+     Mat rgbImg = new Mat();                                                                                                                                                      
+     Imgproc.cvtColor(img, rgbImg, Imgproc.COLOR_RGBA2RGB);                                                                                                                       
+     Imgproc.cvtColor(img, threeChannel, Imgproc.COLOR_BGRA2GRAY);                                                                                                                
+     Imgproc.threshold(threeChannel, threeChannel, 100, 255, Imgproc.THRESH_BINARY);                                                                                              
+                                                                                                                                                                                  
+     Mat fg = new Mat(img.size(),CvType.CV_8U);                                                                                                                                   
+     Imgproc.erode(threeChannel,fg,new Mat());                                                                                                                                    
+                                                                                                                                                                                  
+     Mat bg = new Mat(img.size(),CvType.CV_8U);                                                                                                                                   
+     Imgproc.dilate(threeChannel,bg,new Mat());                                                                                                                                   
+     Imgproc.threshold(bg,bg,1, 128,Imgproc.THRESH_BINARY_INV);                                                                                                                   
+                                                                                                                                                                                  
+     Mat markers = new Mat(img.size(),CvType.CV_8U, new Scalar(0));                                                                                                               
+     Core.add(fg, bg, markers);                                                                                                                                                   
+     Mat result1=new Mat();                                                                                                                                                       
+     WatershedSegmenter segmenter = new WatershedSegmenter();                                                                                                                     
+     segmenter.setMarkers(markers);                                                                                                                                               
+     result1 = segmenter.process(rgbImg);                                                                                                                                         
+     return result1;                                                                                                                                                              
+ }                                                                                                                                                                                
+ public class WatershedSegmenter                                                                                                                                                  
+ {                                                                                                                                                                                
+     public Mat markers=new Mat();                                                                                                                                                
+                                                                                                                                                                                  
+     public void setMarkers(Mat markerImage)                                                                                                                                      
+     {                                                                                                                                                                            
+                                                                                                                                                                                  
+         markerImage.convertTo(markers, CvType.CV_32SC1);                                                                                                                         
+     }                                                                                                                                                                            
+                                                                                                                                                                                  
+     public Mat process(Mat image)                                                                                                                                                
+     {                                                                                                                                                                            
+         Imgproc.watershed(image,markers);                                                                                                                                        
+         markers.convertTo(markers,CvType.CV_8U);                                                                                                                                 
+         return markers;                                                                                                                                                          
+     }                                                                                                                                                                            
+ }                                                                                                                                                                                
+                                                                                                                                                                                  
+ @Override                                                                                                                                                                        
+ public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {                                                                                                    
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+     Log.d(this.getClass().getName(), "input oncameraFrame");                                                                                                                     
+     origin = inputFrame.rgba();                                                                                                                                                  
+     Mat originT = origin.t();                                                                                                                                                    
+     Core.flip(originT, originT, 1);                                                                                                                                              
+     Imgproc.resize(originT,originT,origin.size());                                                                                                                               
+     origin = originT;                                                                                                                                                            
+     origin.copyTo(mRgba);                                                                                                                                                        
+                                                                                                                                                                                  
+     //if ( matResult != null ) matResult.release(); fix 2018. 8. 18                                                                                                              
+     if ( matResult == null )                                                                                                                                                     
+         matResult = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                        
+     mRgba.copyTo(origin);                                                                                                                                                        
+     blur = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                                 
+     edge = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                                 
+     binary = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                               
+     label = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                                
+     closing = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                              
+     //Imgproc.cvtColor(origin,origin,Imgproc.COLOR_RGBA2RGB);                                                                                                                    
+     watershed = new Mat(origin.rows(), origin.cols(), origin.type());                                                                                                            
+     //blur for computer vision first.                                                                                                                                            
+     ConvertRGBtoGray(origin.getNativeObjAddr(), blur.getNativeObjAddr());                                                                                                        
+     Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());                                                                                                                  
+     Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());                                                                                                                  
+     blurforcheck = new Mat(blur.rows(), blur.cols(), blur.type());                                                                                                               
+     ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());                                                                                                          
+     BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());                                                                                                              
+     BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());                                                                                                                
+     Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());                                                                           
+     Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());                                                       
+     //tickflag = Calfortick(origin.getNativeObjAddr());                                                                                                                          
+     //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());                                                                                                     
+                                                                                                                                                                                  
+     if(CalforCr(watershed.getNativeObjAddr())){                                                                                                                                  
+         noisehandiling++;                                                                                                                                                        
+         if(noisehandiling > 7){                                                                                                                                                  
+             crossflag = true;                                                                                                                                                    
+         }                                                                                                                                                                        
+     }                                                                                                                                                                            
+     else if (noisehandiling > 7) {                                                                                                                                               
+         noisehandiling = 7;                                                                                                                                                      
+     }                                                                                                                                                                            
+     else if(noisehandiling>0){                                                                                                                                                   
+         noisehandiling--;                                                                                                                                                        
+     }                                                                                                                                                                            
+     if(noisehandiling <5 && crossflag){                                                                                                                                          
+         crossflag = false;                                                                                                                                                       
+     }                                                                                                                                                                            
+     if(Calculateob(matResult.getNativeObjAddr())){                                                                                                                               
+         errorhandling++;                                                                                                                                                         
+     }                                                                                                                                                                            
+     else if (errorhandling > 5) {                                                                                                                                                
+         errorhandling = 5;                                                                                                                                                       
+     }                                                                                                                                                                            
+     else {                                                                                                                                                                       
+         errorhandling--;                                                                                                                                                         
+         obflag = false;                                                                                                                                                          
+     }                                                                                                                                                                            
+     if(Calforst(edge.getNativeObjAddr())){                                                                                                                                       
+         stairhandling++;                                                                                                                                                         
+     }                                                                                                                                                                            
+     else if (stairhandling > 7) {                                                                                                                                                
+         stairhandling = 7;                                                                                                                                                       
+     }                                                                                                                                                                            
+     else {                                                                                                                                                                       
+         stairhandling--;                                                                                                                                                         
+     }                                                                                                                                                                            
+     if(Calfordown(edge.getNativeObjAddr())){                                                                                                                                     
+         downhandling++;                                                                                                                                                          
+     }                                                                                                                                                                            
+     else if(downhandling>10){                                                                                                                                                    
+         downhandling=10;                                                                                                                                                         
+     }                                                                                                                                                                            
+     else{                                                                                                                                                                        
+         downhandling--;                                                                                                                                                          
+     }                                                                                                                                                                            
+     if(stairhandling>5 && !crossflag && !externflagcr &&!tickflag&&!ttsflag&& !obflag) {                                                                                         
+         String obmsg = "상향계단입니다";                                                                                                                                                
+         tts.speak(obmsg, TextToSpeech.QUEUE_ADD, null);                                                                                                                          
+         ttsflag = true;                                                                                                                                                          
+     }                                                                                                                                                                            
+     else if(stairhandling>3 && crossflag && externflagcr &&!tickflag&&!ttsflag){                                                                                                 
+         String crmsg = "횡단보도입니다";                                                                                                                                                
+         tts.speak(crmsg, TextToSpeech.QUEUE_ADD, null);                                                                                                                          
+         Log.d(this.getClass().getName(), "opencvcr");                                                                                                                            
+         ttsflag = true;                                                                                                                                                          
+     }                                                                                                                                                                            
+     else if(errorhandling>5 && !externflagbs &&!tickflag&&!ttsflag){                                                                                                             
+         String upmsg = "장애물입니다";                                                                                                                                                 
+         tts.speak(upmsg, TextToSpeech.QUEUE_ADD, null);                                                                                                                          
+         Log.d(this.getClass().getName(), "opencvob");                                                                                                                            
+         ttsflag = true;                                                                                                                                                          
+         obflag = true;                                                                                                                                                           
+     }                                                                                                                                                                            
+     else if(errorhandling>5 && externflagbs &&!tickflag&&!ttsflag){                                                                                                              
+         String bsmsg = "버스정류장입니다";                                                                                                                                               
+         tts.speak(bsmsg, TextToSpeech.QUEUE_ADD, null);                                                                                                                          
+         Log.d(this.getClass().getName(), "opencvbs");                                                                                                                            
+         Intent intent = new Intent(getApplicationContext(), BusNumActivity.class);                                                                                               
+         intent.putExtra("busnumber", busNo);                                                                                                                                     
+         startActivity(intent);                                                                                                                                                   
+         isFindBus = true;                                                                                                                                                        
+         externflagbs = false;                                                                                                                                                    
+     }                                                                                                                                                                            
+     else if(externflagtick && tickflag && errorhandling>5&&!ttsflag&& !drflag){                                                                                                  
+         String timsg = "개찰구입니다";                                                                                                                                                 
+         tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);                                                                                                                          
+         Log.d(this.getClass().getName(), "opencvtick");                                                                                                                          
+         tgflag =true;                                                                                                                                                            
+         ttsflag = true;                                                                                                                                                          
+     }                                                                                                                                                                            
+     else{                                                                                                                                                                        
+         Log.d(this.getClass().getName(), "opencvr");                                                                                                                             
+     }                                                                                                                                                                            
+     label = new Mat(matResult.rows(), matResult.cols(), origin.type());                                                                                                          
+     MatrixTime(50);                                                                                                                                                              
+                                                                                                                                                                                  
+                                                                                                                                                                                  
+     return steptowatershed(originT);                                                                                                                                             
+                                                                                                                                                                                  
+ }                                                                                                                                                                                
     LocationCallback locationCallback = new LocationCallback() {
         @Override
         public void onLocationResult(LocationResult locationResult) {
