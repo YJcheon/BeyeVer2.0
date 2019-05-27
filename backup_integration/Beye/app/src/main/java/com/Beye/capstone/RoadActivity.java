@@ -498,6 +498,9 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
                     msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
 
+                    if(route[routeIndex].getType() == 1 && pathIndex == 0) {
+                        externflagtick = true;
+                    }
                     if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
@@ -517,6 +520,9 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         }
                         msg += speech;
                         tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
+                        if(speech.contains("횡단보도")){
+                            externflagcr = true;
+                        }
                         if(route[routeIndex].getType()==1 && pathIndex == 1 && tgflag){
                             String present ="흑석";
                             String[] sub9 = RoadActivity.getsubstation9();
