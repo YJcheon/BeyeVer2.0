@@ -193,7 +193,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             }
         };
         Timer timer = new Timer();
-        timer.schedule(tt, 0, 3000);
+        timer.schedule(tt, 5000, 5000);
         setContentView(R.layout.activity_road);
         textView = (TextView)findViewById(R.id.sttResult);
         textView.setMovementMethod(new ScrollingMovementMethod());
@@ -452,7 +452,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             ttsflag = true;
         }
         if(checkflag){
-            String timsg = "녹색불입니다 건너세요";
+            String timsg = "녹색불입니다건너세요";
             tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvtraffic");
             ttsflag = true;
@@ -464,10 +464,10 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             Log.d(this.getClass().getName(), "opencvr");
         }
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
-        MatrixTime(50);
+        MatrixTime(100);
 
 
-        return origin;
+        return matResult;
 
     }
     LocationCallback locationCallback = new LocationCallback() {
@@ -501,7 +501,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     if(route[routeIndex].getType() == 1 && pathIndex == 0) {
                         externflagtick = true;
                     }
-                    if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
+                    if ((int) distance[0] < 15 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if (route[routeIndex].getType() == 2) {
@@ -519,7 +519,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             speech += "하세요.";
                         }
                         msg += speech;
-                        tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
+                        tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
                         if(speech.contains("횡단보도")){
                             externflagcr = true;
                         }

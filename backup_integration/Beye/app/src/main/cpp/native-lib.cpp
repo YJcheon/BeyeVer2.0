@@ -95,7 +95,7 @@ Java_com_Beye_capstone_RoadActivity_Binary(JNIEnv *env, jobject instance,
                                                                jlong matAddrResult) {
         Mat &matInput = *(Mat *)matAddrInput;
         Mat &matResult = *(Mat *)matAddrResult;
-        threshold(matInput, matResult, 55, 255, THRESH_BINARY);
+        threshold(matInput, matResult, 35, 255, THRESH_BINARY);
 
 }
 
@@ -187,7 +187,7 @@ Java_com_Beye_capstone_RoadActivity_Calculateob(JNIEnv *env, jobject instance,
             }
         }
     }
-    if (count > 200) {
+    if (count > 300) {
         return true;
     } else
         return false;
