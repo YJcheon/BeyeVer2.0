@@ -431,7 +431,7 @@ Java_com_Beye_capstone_RoadActivity_Calfortick(JNIEnv *env, jobject instance,
 }
 extern "C"
 JNIEXPORT bool JNICALL
-Java_com_Beye_capstone_RoadActivity_Check_subway_station(JNIEnv *env, jobject instance,
+Java_com_Beye_capstone_RoadActivity_Checksubwaystation(JNIEnv *env, jobject instance,
                                                jlong matAddrInput) {
     Mat &contrastImage = *(Mat *) matAddrInput;
     Mat gray;
