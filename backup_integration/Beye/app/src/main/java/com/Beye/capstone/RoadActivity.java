@@ -45,6 +45,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -96,7 +97,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private CameraBridgeViewBase mOpenCvCameraView;
     private Mat matInput;
     private Mat matResult;
-    private Mat origin;
+    private Mat origin = new Mat(120, 120, CvType.CV_8UC4);
     private Mat binary;
     private Mat edge;
     private Mat blur;
@@ -105,9 +106,14 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private Mat closing;
     private Mat calob;
     private Mat watershed;
-    private Mat mRgba = new Mat(120, 160, CvType.CV_8UC4);
-    private Mat mGray = new Mat(120, 160, CvType.CV_8UC4);
-
+    private Mat mRgba = new Mat(120, 120, CvType.CV_8UC4);
+    private Mat mGray = new Mat(120, 120, CvType.CV_8UC4);
+    public static String[] substation9=new String[]{"개화", "김포공항","공항시장","신방화","마곡나루","양천향교","가양","증미","등촌","염창",
+            "신목동","선유도","당산","국회의사당","여의도","샛강","노량진","노들","흑석","동작","구반포","신반포","고속터미널","사평","신논현","언주","선정릉",
+            "삼성중앙","봉은사","종합운동장","삼전","석촌고분","석촌","송파나루","한성백제","올림픽공원","둔촌오륜","중앙보훈병원"};;
+    public static String[] getsubstation9(){
+        return substation9;
+    }
     public native void Convert90(long matAddrInput);
     public native void ConvertRGBtoGray(long matAddrInput, long matAddrResult);
     public native void Gaussian(long matAddrInput, long matAddrResult);
@@ -125,6 +131,8 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public native boolean Calforst(long matAddrInput);
     public native boolean Calfordown(long matAddrInput);
     public native boolean Calculateob(long matAddrInput);
+    public native boolean Checksubwaystation(long matAddrInput);
+    public native boolean Calculatetrafficlight(long matAddrInput,int left_global,int top_global,int width_global,int height_global,int count_global);
     public int errorhandling=0;
     public int stairhandling=0;
     public int downhandling=0;
@@ -136,6 +144,17 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public boolean externflagtick = false;
     public boolean ttsflag = true;
     public boolean obflag = false;
+    public boolean tgflag = false;
+    public boolean drflag = false;
+    public boolean subflag = false;
+    public boolean entranceflag = false;
+    public boolean trafficflag = false;
+    public boolean checkflag = false;
+    public int left =0;
+    public int top =0;
+    public int width =0;
+    public int height =0;
+    public int count =0;
     public String busNo;
     public void MatrixTime(int delayTime){
         long saveTime = System.currentTimeMillis();
@@ -174,7 +193,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             }
         };
         Timer timer = new Timer();
-        timer.schedule(tt, 0, 3000);
+        timer.schedule(tt, 5000, 5000);
         setContentView(R.layout.activity_road);
         textView = (TextView)findViewById(R.id.sttResult);
         textView.setMovementMethod(new ScrollingMovementMethod());
@@ -259,6 +278,48 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         Log.d(this.getClass().getName(), "input stop");
     }
 
+    public Mat steptowatershed(Mat img)
+    {
+        Mat threeChannel = new Mat();
+        Mat rgbImg = new Mat();
+        Imgproc.cvtColor(img, rgbImg, Imgproc.COLOR_RGBA2RGB);
+        Imgproc.cvtColor(img, threeChannel, Imgproc.COLOR_BGRA2GRAY);
+        Imgproc.threshold(threeChannel, threeChannel, 100, 255, Imgproc.THRESH_BINARY);
+
+        Mat fg = new Mat(img.size(),CvType.CV_8U);
+        Imgproc.erode(threeChannel,fg,new Mat());
+
+        Mat bg = new Mat(img.size(),CvType.CV_8U);
+        Imgproc.dilate(threeChannel,bg,new Mat());
+        Imgproc.threshold(bg,bg,1, 128,Imgproc.THRESH_BINARY_INV);
+
+        Mat markers = new Mat(img.size(),CvType.CV_8U, new Scalar(0));
+        //markers(Imgproc.rectangle(markers, new Point(20, 40) , new Point(120, 140),marindex, new Scalar(0), 2)) = Scalar::all(2);
+        Core.add(fg, bg, markers);
+        Mat result1=new Mat();
+        WatershedSegmenter segmenter = new WatershedSegmenter();
+        segmenter.setMarkers(markers);
+        result1 = segmenter.process(rgbImg);
+        return result1;
+    }
+    public class WatershedSegmenter
+    {
+        public Mat markers=new Mat();
+
+        public void setMarkers(Mat markerImage)
+        {
+
+            markerImage.convertTo(markers, CvType.CV_32SC1);
+        }
+
+        public Mat process(Mat image)
+        {
+            Imgproc.watershed(image,markers);
+            markers.convertTo(markers,CvType.CV_8U);
+            return markers;
+        }
+    }
+
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
@@ -270,6 +331,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         Imgproc.resize(originT,originT,origin.size());
         origin = originT;
         origin.copyTo(mRgba);
+
         //if ( matResult != null ) matResult.release(); fix 2018. 8. 18
         if ( matResult == null )
             matResult = new Mat(origin.rows(), origin.cols(), origin.type());
@@ -279,20 +341,25 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         binary = new Mat(origin.rows(), origin.cols(), origin.type());
         label = new Mat(origin.rows(), origin.cols(), origin.type());
         closing = new Mat(origin.rows(), origin.cols(), origin.type());
+        //Imgproc.cvtColor(origin,origin,Imgproc.COLOR_RGBA2RGB);
         watershed = new Mat(origin.rows(), origin.cols(), origin.type());
         //blur for computer vision first.
-        //Convert90(origin.getNativeObjAddr());
         ConvertRGBtoGray(origin.getNativeObjAddr(), blur.getNativeObjAddr());
         Binary(blur.getNativeObjAddr(), binary.getNativeObjAddr());
         Gaussian(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         blurforcheck = new Mat(blur.rows(), blur.cols(), blur.type());
         ClosingFilter(blur.getNativeObjAddr(), closing.getNativeObjAddr());
+        watershed = steptowatershed(closing);
         BinaryDilate(blur.getNativeObjAddr(), blur.getNativeObjAddr());
         BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
-        Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
+        //Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
         Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());
-        //tickflag = Calfortick(origin.getNativeObjAddr());
+        if(trafficflag){
+            checkflag = Calculatetrafficlight(origin.getNativeObjAddr(), left, top, width, height, count);
+        }
+        tickflag = Calfortick(origin.getNativeObjAddr());
         //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
+        watershed = steptowatershed(originT);
         if(CalforCr(watershed.getNativeObjAddr())){
             noisehandiling++;
             if(noisehandiling > 7){
@@ -336,7 +403,16 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         else{
             downhandling--;
         }
-        if(stairhandling>5 && !crossflag && !externflagcr &&!tickflag&&!ttsflag&& !obflag) {
+        if(subflag){
+            if(noisehandiling>5){
+                entranceflag = Calfortick(origin.getNativeObjAddr());
+                String timsg = "지하철입구입니다";
+                tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
+                Log.d(this.getClass().getName(), "opencventrance");
+                ttsflag = true;
+            }
+        }
+        if(stairhandling>5 && crossflag && !externflagcr &&!tickflag&&!ttsflag&& !obflag) {
             String obmsg = "상향계단입니다";
             tts.speak(obmsg, TextToSpeech.QUEUE_ADD, null);
             ttsflag = true;
@@ -346,6 +422,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             tts.speak(crmsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvcr");
             ttsflag = true;
+            trafficflag = true;
         }
         else if(errorhandling>5 && !externflagbs &&!tickflag&&!ttsflag){
             String upmsg = "장애물입니다";
@@ -364,20 +441,36 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             isFindBus = true;
             externflagbs = false;
         }
-        else if(externflagtick && tickflag && errorhandling>5&&!ttsflag){
+        else if(externflagtick&& tickflag && errorhandling>5&&!ttsflag&& !drflag){
             String timsg = "개찰구입니다";
             tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvtick");
+            tgflag =true;
             ttsflag = true;
+        }
+        if(checkflag){
+            String timsg = "녹색불입니다건너세요";
+            tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
+            Log.d(this.getClass().getName(), "opencvtraffic");
+            ttsflag = true;
+            checkflag = false;
+            crossflag = false;
+            trafficflag = false;
         }
         else{
             Log.d(this.getClass().getName(), "opencvr");
         }
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
-        MatrixTime(50);
+        MatrixTime(500);
+        blur.release();
+        edge.release();
+        binary.release();
+        label.release();
+        closing.release();
+        watershed.release();
 
+        return matResult;
 
-        return originT;
     }
     LocationCallback locationCallback = new LocationCallback() {
         @Override
@@ -407,7 +500,10 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     String msg = "거리 : " + distance[0] + "\n현재 위치\n위도 : " + latitude + " 경도 : " + longitude + "\n";
                     msg += "목적지\n위도 : " + destLatitude + " 경도 : " + destLongitude + "\n";
 
-                    if ((int) distance[0] < 1000) {
+                    if(route[routeIndex].getType() == 1 && pathIndex == 0) {
+                        externflagtick = true;
+                    }
+                    if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if (route[routeIndex].getType() == 2) {
@@ -425,7 +521,48 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             speech += "하세요.";
                         }
                         msg += speech;
-                        tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
+                        tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
+                        if(speech.contains("횡단보도")){
+                            externflagcr = true;
+                        }
+                        if(route[routeIndex].getType()==1 && pathIndex == 1 && tgflag){
+                            String present ="흑석";
+                            String[] sub9 = RoadActivity.getsubstation9();
+                            int di_index=-1;
+                            String StationName = route[routeIndex].getPath(pathIndex - 1).split(" ")[5].split("로")[0];
+                            Log.d("StationName",StationName);
+
+
+                            for (int i = 0; i < sub9.length; i++) {
+                                if (StationName.equals(sub9[i])) {
+                                    di_index=i;
+                                    //arr.add(wo);
+                                    break;
+                                }
+                            }
+
+
+                            int p_index=-1;
+                            for(int i=0; i<substation9.length;i++){
+                                if(substation9[i].equals(present)){
+                                    p_index=i;
+                                }
+                            }
+                            if(di_index==p_index){
+                                System.out.println("error");
+                            }
+                            else if(di_index<p_index)
+                            {
+                                tts.speak("오른쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
+                                //System.out.println("하행");
+                            }
+                            else {
+                                tts.speak("왼쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
+                                System.out.println("상행");
+                            }
+                            drflag = true;
+
+                        }
                         if (route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
                             externflagbs = true;
                             odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
@@ -556,10 +693,6 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                         destLon = Double.parseDouble(destLongitude);
                                         findPedestrainPath(i, new TMapPoint(lat, lon), new TMapPoint(destLat, destLon));
                                         route[i].setDest(destName);
-                                        Thread.sleep(routeLength * 250);
-                                        for (int j = 0; j < routeLength; j++) {
-                                            route[j].setLastPath();
-                                        }
                                     }
                                 } else {
                                     destLat = subPath.getJSONObject(i).getDouble("endY");
@@ -586,6 +719,11 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             }
                         }
                     }
+                    Thread.sleep(routeLength * 250);
+                    for (int j = 0; j < routeLength; j++) {
+                        route[j].setLastPath();
+                    }
+
                     String tmp = new String("");
                     for  (int i = 0; i < routeLength;i++) {
                         for (int j = 0; j < route[i].getSize(); j++) {
@@ -614,7 +752,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
     };
 
-        @Override
+    @Override
     protected  void onDestroy() {
         super.onDestroy();
         if(tts != null) {
@@ -670,3 +808,4 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         });
     }
 }
+

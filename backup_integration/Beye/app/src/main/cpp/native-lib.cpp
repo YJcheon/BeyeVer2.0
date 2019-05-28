@@ -85,6 +85,7 @@ Java_com_Beye_capstone_RoadActivity_ClosingFilter(JNIEnv *env, jobject instance,
         Mat &matInput = *(Mat *)matAddrInput;
         Mat &matResult = *(Mat *)matAddrResult;
         morphologyEx(matInput, matResult, MORPH_CLOSE, element);
+        cvtColor(matResult, matResult, COLOR_RGB2RGBA);
 
 }
 extern "C"
@@ -94,7 +95,7 @@ Java_com_Beye_capstone_RoadActivity_Binary(JNIEnv *env, jobject instance,
                                                                jlong matAddrResult) {
         Mat &matInput = *(Mat *)matAddrInput;
         Mat &matResult = *(Mat *)matAddrResult;
-        threshold(matInput, matResult, 55, 255, THRESH_BINARY);
+        threshold(matInput, matResult, 35, 255, THRESH_BINARY);
 
 }
 
@@ -186,7 +187,7 @@ Java_com_Beye_capstone_RoadActivity_Calculateob(JNIEnv *env, jobject instance,
             }
         }
     }
-    if (count > 200) {
+    if (count > 300) {
         return true;
     } else
         return false;
@@ -347,14 +348,34 @@ Java_com_Beye_capstone_RoadActivity_CalforCr(JNIEnv *env, jobject instance,
 
     Mat &matInput = *(Mat *) matAddrInput;
     int maxy =0;
+    int label;
     bool crossbit = false;
-    for (int y = 0; y < matInput.rows; y++) {
-        for (int x = 0; x < matInput.cols; x++) {
-            if (matInput.at<uchar>(y, x) != 0) {
-                if(maxy<y){
-                    maxy =y;
+    bool checkbit;
+    bool endbit = false;
+    label = matInput.at<uchar>(matInput.rows,matInput.cols/2);
+    for (int y = matInput.rows; y > 0 ; y--) {
+        for (int x = matInput.cols; x > 0 ; x--) {
+                if (label != matInput.at<uchar>(y,x)){
+                    matInput.at<uchar>(y,x) = 0;
                 }
+                else{
+                    matInput.at<uchar>(y,x) = 255;
+                }
+        }
+    }
+
+    for (int y = matInput.rows; y > 0 ; y--) {
+        checkbit = false;
+        for (int x = matInput.cols; x > 0; x--) {
+            if(matInput.at<uchar>(y,x) == 255){
+                checkbit = true;
             }
+        }
+        if(checkbit && !endbit){
+            maxy = y;
+        }
+        if(!checkbit){
+            endbit = true;
         }
     }
     if (maxy > matInput.rows / 10 * 7 ) {
@@ -408,15 +429,181 @@ Java_com_Beye_capstone_RoadActivity_Calfortick(JNIEnv *env, jobject instance,
         return false;
     }
 }
-    extern "C"
-    JNIEXPORT bool JNICALL
-    Java_com_Beye_capstone_RoadActivity_Convert90(JNIEnv *env, jobject instance,
-                                                   jlong matAddrInput){
-        Mat &origin = *(Mat *) matAddrInput;
-        Mat resizeImage;
-        resize(origin, resizeImage, Size(300,300));
-        Point center(300 / 2, 300 / 2); // 이미지 중심
-        Mat matRotation = getRotationMatrix2D(center, -90, 1); //-90 : 시계방향 90도
-        warpAffine(resizeImage, resizeImage, matRotation, resizeImage.size()); // 회전
-        origin = resizeImage.clone();
+extern "C"
+JNIEXPORT bool JNICALL
+Java_com_Beye_capstone_RoadActivity_Checksubwaystation(JNIEnv *env, jobject instance,
+                                               jlong matAddrInput) {
+    Mat &contrastImage = *(Mat *) matAddrInput;
+    Mat gray;
+    Mat erase_noise;
+    Mat dotblocks = contrastImage.clone();
+    for (int x = 0; x < contrastImage.cols; x++) {
+        for (int y = 0; y < contrastImage.rows; y++) {
+            if (contrastImage.at<Vec3b>(y, x)[0] < 150 && contrastImage.at<Vec3b>(y, x)[1] > 160 &&
+                contrastImage.at<Vec3b>(y, x)[2] > 160) {
+                dotblocks.at<Vec3b>(y, x)[0] = 0;
+                dotblocks.at<Vec3b>(y, x)[1] = 255;
+                dotblocks.at<Vec3b>(y, x)[2] = 255;
+            } else {
+                dotblocks.at<Vec3b>(y, x)[0] = 0;
+                dotblocks.at<Vec3b>(y, x)[1] = 0;
+                dotblocks.at<Vec3b>(y, x)[2] = 0;
+            }
+
+        }
     }
+    erase_noise = contrastImage.clone();
+    for (int x = 0; x < contrastImage.cols; x++) {
+        for (int y = 0; y < contrastImage.rows; y++) {
+            if (contrastImage.at<Vec3b>(y, x)[0] > 70 ||
+                contrastImage.at<Vec3b>(y, x)[1] > 70 ||
+                contrastImage.at<Vec3b>(y, x)[2] > 70) {
+                erase_noise.at<Vec3b>(y, x)[0] = 255;
+                erase_noise.at<Vec3b>(y, x)[1] = 255;
+                erase_noise.at<Vec3b>(y, x)[2] = 255;
+            } else if (contrastImage.at<Vec3b>(y, x)[0] + contrastImage.at<Vec3b>(y, x)[1] <
+                       contrastImage.at<Vec3b>(y, x)[2]) {
+                erase_noise.at<Vec3b>(y, x)[0] = 255;
+                erase_noise.at<Vec3b>(y, x)[1] = 255;
+                erase_noise.at<Vec3b>(y, x)[2] = 255;
+            } else if (contrastImage.at<Vec3b>(y, x)[2] + contrastImage.at<Vec3b>(y, x)[1] <
+                       contrastImage.at<Vec3b>(y, x)[0]) {
+                erase_noise.at<Vec3b>(y, x)[0] = 255;
+                erase_noise.at<Vec3b>(y, x)[1] = 255;
+                erase_noise.at<Vec3b>(y, x)[2] = 255;
+            } else if (contrastImage.at<Vec3b>(y, x)[0] + contrastImage.at<Vec3b>(y, x)[2] <
+                       contrastImage.at<Vec3b>(y, x)[1]) {
+                erase_noise.at<Vec3b>(y, x)[0] = 255;
+                erase_noise.at<Vec3b>(y, x)[1] = 255;
+                erase_noise.at<Vec3b>(y, x)[2] = 255;
+            }
+
+        }
+        cvtColor(erase_noise, gray, COLOR_RGBA2GRAY);
+        Mat subway;
+        subway = gray.clone();
+        for (int x = 0; x < gray.cols; x++) {
+            for (int y = 0; y < gray.rows; y++) {
+                if (gray.at<uchar>(y, x) < 70) {
+                    subway.at<uchar>(y, x) = 255;
+                } else {
+                    subway.at<uchar>(y, x) = 0;
+                }
+
+            }
+        }
+        erode(subway, subway, Mat(), Point(1, 1), 1);
+        Mat subway_color;
+        cvtColor(subway, subway_color, COLOR_GRAY2BGR);
+        Mat img_labels, centroids, stats;
+        int area1, left1, top1, width1, height1;
+        int numOfLabels = connectedComponentsWithStats(subway, img_labels, stats, centroids, 8,
+                                                       CV_32S);
+        bool exitOuterLoop = false;
+        for (int j = 1; j < numOfLabels; j++) {
+            area1 = stats.at<int>(j, CC_STAT_AREA);
+            left1 = stats.at<int>(j, CC_STAT_LEFT);
+            top1 = stats.at<int>(j, CC_STAT_TOP);
+            width1 = stats.at<int>(j, CC_STAT_WIDTH);
+            height1 = stats.at<int>(j, CC_STAT_HEIGHT);
+            int x = centroids.at<double>(j, 0);
+            int y = centroids.at<double>(j, 1);
+            rectangle(subway_color, Point(left1, top1), Point(left1 + width1, top1 + height1),
+                      Scalar(0, 0, 255), 1);
+            for (int y = top1; y < top1 + height1; y++) {
+                for (int x = left1; x < left1 + width1; x++) {
+                    if (dotblocks.at<Vec3b>(y, x)[0] + dotblocks.at<Vec3b>(y, x)[1] +
+                        dotblocks.at<Vec3b>(y, x)[2] != 0) {
+                        exitOuterLoop = true;
+                    }
+                }
+            }
+        }
+        return exitOuterLoop;
+    }
+}
+extern "C"
+JNIEXPORT bool JNICALL
+Java_com_Beye_capstone_RoadActivity_Calculatetrafficlight(JNIEnv *env, jobject instance,
+                                               jlong matAddrInput, jint left_global,
+                                               jint top_global, jint width_global, jint height_global,
+                                               jint count_global) {
+    Mat &contrastImage = *(Mat *) matAddrInput;
+    int &left = left_global;
+    int &top = top_global;
+    int &width = width_global;
+    int &height = height_global;
+    int &count = count_global;
+    Mat traffic_sig;
+    traffic_sig = contrastImage.clone();
+    for (int x = 0; x < contrastImage.cols; x++) {
+        for (int y = 0; y < contrastImage.rows; y++) {
+            if (contrastImage.at<Vec3b>(y, x)[0] < 100 && contrastImage.at<Vec3b>(y, x)[1] < 100 &&
+                contrastImage.at<Vec3b>(y, x)[2] > 150 && y < contrastImage.rows / 2) {
+                traffic_sig.at<Vec3b>(y, x)[0] = 0;
+                traffic_sig.at<Vec3b>(y, x)[1] = 0;
+                traffic_sig.at<Vec3b>(y, x)[2] = 255;
+            } else {
+                traffic_sig.at<Vec3b>(y, x)[0] = 0;
+                traffic_sig.at<Vec3b>(y, x)[1] = 0;
+                traffic_sig.at<Vec3b>(y, x)[2] = 0;
+            }
+
+        }
+    }
+    int loopcounter = 0;
+    Mat traffic_gray;
+    cvtColor(traffic_sig, traffic_gray, COLOR_RGB2GRAY);
+    Mat img_labels, stats, centroids;
+    int numOfLabels_t = connectedComponentsWithStats(traffic_gray, img_labels, stats, centroids, 8,
+                                                     CV_32S);
+    for (int j = 1; j < numOfLabels_t; j++) {
+        int area_global1 = stats.at<int>(j, CC_STAT_AREA);
+        int left_global1 = stats.at<int>(j, CC_STAT_LEFT);
+        int top_global1 = stats.at<int>(j, CC_STAT_TOP);
+        int width_global1 = stats.at<int>(j, CC_STAT_WIDTH);
+        int height_global1 = stats.at<int>(j, CC_STAT_HEIGHT);
+        if (count_global == 0 || abs(left_global - left_global1) < 10) {
+            left = left_global1;
+            top = top_global1;
+            width = width_global1;
+            height = height_global1;
+        }
+        int x = centroids.at<double>(j, 0);
+        int y = centroids.at<double>(j, 1);
+        loopcounter++;
+    }
+    bool red_flash_flag = true;
+    bool green_flash_flag = false;
+    for (int x = left_global; x < left_global + width_global; x++) {
+        for (int y = top_global; y < top_global + height_global; y++) {
+            if (traffic_sig.at<Vec3b>(y, x)[0] == 0 && traffic_sig.at<Vec3b>(y, x)[1] == 0 &&
+                traffic_sig.at<Vec3b>(y, x)[2] == 255) {
+                red_flash_flag = false;
+            }
+        }
+    }
+    for (int x = left_global; x < left_global + width_global; x++) {
+        for (int y = top_global + height_global; y < contrastImage.rows; y++) {
+            if (contrastImage.at<Vec3b>(y, x)[1] >
+                (contrastImage.at<Vec3b>(y, x)[2] + contrastImage.at<Vec3b>(y, x)[0]) / 1.3) {
+                traffic_sig.at<Vec3b>(y, x)[0] = 0;
+                traffic_sig.at<Vec3b>(y, x)[1] = 255;
+                traffic_sig.at<Vec3b>(y, x)[2] = 0;
+            }
+        }
+    }
+    for (int x = 0; x < contrastImage.cols; x++) {
+        for (int y = 0; y < contrastImage.rows; y++) {
+            if (traffic_sig.at<Vec3b>(y, x)[0] == 0 && traffic_sig.at<Vec3b>(y, x)[1] == 255 &&
+                traffic_sig.at<Vec3b>(y, x)[2] == 0 && red_flash_flag) {
+                green_flash_flag = true;
+            }
+        }
+        if (green_flash_flag && red_flash_flag) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
