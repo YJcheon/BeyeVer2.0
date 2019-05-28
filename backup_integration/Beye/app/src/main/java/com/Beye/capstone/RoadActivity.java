@@ -554,6 +554,11 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
                     if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
+
+                        if(externflagcr) {
+                            externflagcr = false;
+                        }
+
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if (route[routeIndex].getType() == 2) {
                                 isFindBus = false;
