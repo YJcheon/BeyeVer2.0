@@ -524,7 +524,7 @@ Java_com_Beye_capstone_RoadActivity_Checksubwaystation(JNIEnv *env, jobject inst
 }
 extern "C"
 JNIEXPORT bool JNICALL
-Java_com_Beye_capstone_RoadActivity_Calculate_traffic_light(JNIEnv *env, jobject instance,
+Java_com_Beye_capstone_RoadActivity_Calculatetrafficlight(JNIEnv *env, jobject instance,
                                                jlong matAddrInput, jint left_global,
                                                jint top_global, jint width_global, jint height_global,
                                                jint count_global) {

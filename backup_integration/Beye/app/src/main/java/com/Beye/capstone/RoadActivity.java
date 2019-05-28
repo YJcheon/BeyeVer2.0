@@ -132,7 +132,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public native boolean Calfordown(long matAddrInput);
     public native boolean Calculateob(long matAddrInput);
     public native boolean Checksubwaystation(long matAddrInput);
-    public native boolean Calculate_traffic_light(long matAddrInput,int left_global,int top_global,int width_global,int height_global,int count_global);
+    public native boolean Calculatetrafficlight(long matAddrInput,int left_global,int top_global,int width_global,int height_global,int count_global);
     public int errorhandling=0;
     public int stairhandling=0;
     public int downhandling=0;
@@ -358,7 +358,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             subflag = Checksubwaystation(origin.getNativeObjAddr());
         }
         if(trafficflag){
-            checkflag = Calculate_traffic_light(origin.getNativeObjAddr(), left, top, width, height, count);
+            checkflag = Calculatetrafficlight(origin.getNativeObjAddr(), left, top, width, height, count);
         }
         //tickflag = Calfortick(origin.getNativeObjAddr());
         //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
