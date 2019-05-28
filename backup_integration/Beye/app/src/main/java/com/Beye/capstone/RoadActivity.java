@@ -354,13 +354,10 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
         BinaryEdge(blur.getNativeObjAddr(), edge.getNativeObjAddr());
         //Watershed(blurforcheck.getNativeObjAddr(),edge.getNativeObjAddr() , watershed.getNativeObjAddr());
         Calforob(binary.getNativeObjAddr(), edge.getNativeObjAddr(), origin.getNativeObjAddr(), matResult.getNativeObjAddr());
-        if(externflagtick) {
-            subflag = Checksubwaystation(origin.getNativeObjAddr());
-        }
         if(trafficflag){
             checkflag = Calculatetrafficlight(origin.getNativeObjAddr(), left, top, width, height, count);
         }
-        //tickflag = Calfortick(origin.getNativeObjAddr());
+        tickflag = Calfortick(origin.getNativeObjAddr());
         //Eraseroad(matResult.getNativeObjAddr(), matResult.getNativeObjAddr());
         watershed = steptowatershed(originT);
         if(CalforCr(watershed.getNativeObjAddr())){
@@ -444,7 +441,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             isFindBus = true;
             externflagbs = false;
         }
-        else if(entranceflag && tickflag && errorhandling>5&&!ttsflag&& !drflag){
+        else if(externflagtick&& tickflag && errorhandling>5&&!ttsflag&& !drflag){
             String timsg = "개찰구입니다";
             tts.speak(timsg, TextToSpeech.QUEUE_ADD, null);
             Log.d(this.getClass().getName(), "opencvtick");
@@ -464,8 +461,13 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
             Log.d(this.getClass().getName(), "opencvr");
         }
         label = new Mat(matResult.rows(), matResult.cols(), origin.type());
-        MatrixTime(100);
-
+        MatrixTime(500);
+        blur.release();
+        edge.release();
+        binary.release();
+        label.release();
+        closing.release();
+        watershed.release();
 
         return matResult;
 
@@ -501,7 +503,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     if(route[routeIndex].getType() == 1 && pathIndex == 0) {
                         externflagtick = true;
                     }
-                    if ((int) distance[0] < 15 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
+                    if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
                             if (route[routeIndex].getType() == 2) {
