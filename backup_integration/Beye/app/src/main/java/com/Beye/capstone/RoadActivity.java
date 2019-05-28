@@ -503,6 +503,55 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     if(route[routeIndex].getType() == 1 && pathIndex == 0) {
                         externflagtick = true;
                     }
+
+                    if(route[routeIndex].getType()==1 && pathIndex == 1 && tgflag){
+                        String present ="흑석";
+                        String[] sub9 = RoadActivity.getsubstation9();
+                        int di_index=-1;
+                        String StationName = route[routeIndex].getPath(pathIndex - 1).split(" ")[5].split("로")[0];
+                        Log.d("StationName",StationName);
+
+                        for (int i = 0; i < sub9.length; i++) {
+                            if (StationName.equals(sub9[i])) {
+                                di_index=i;
+                                //arr.add(wo);
+                                break;
+                            }
+                        }
+
+                        int p_index=-1;
+                        for(int i=0; i<substation9.length;i++){
+                            if(substation9[i].equals(present)){
+                                p_index=i;
+                            }
+                        }
+                        if(di_index==p_index){
+                            System.out.println("error");
+                        }
+                        else if(di_index<p_index)
+                        {
+                            tts.speak("오른쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
+                            //System.out.println("하행");
+                        }
+                        else {
+                            tts.speak("왼쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
+                            System.out.println("상행");
+                        }
+                        drflag = true;
+
+                    }
+
+                    if (route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
+                        externflagbs = true;
+                        odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        busNo = route[routeIndex].getPath(pathIndex - 1).split(" ")[1];
+                    }
+
                     if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
                         if (pathIndex >= route[routeIndex].getSize()) {
@@ -522,59 +571,10 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         }
                         msg += speech;
                         tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
+
                         if(speech.contains("횡단보도")){
                             externflagcr = true;
                         }
-                        if(route[routeIndex].getType()==1 && pathIndex == 1 && tgflag){
-                            String present ="흑석";
-                            String[] sub9 = RoadActivity.getsubstation9();
-                            int di_index=-1;
-                            String StationName = route[routeIndex].getPath(pathIndex - 1).split(" ")[5].split("로")[0];
-                            Log.d("StationName",StationName);
-
-
-                            for (int i = 0; i < sub9.length; i++) {
-                                if (StationName.equals(sub9[i])) {
-                                    di_index=i;
-                                    //arr.add(wo);
-                                    break;
-                                }
-                            }
-
-
-                            int p_index=-1;
-                            for(int i=0; i<substation9.length;i++){
-                                if(substation9[i].equals(present)){
-                                    p_index=i;
-                                }
-                            }
-                            if(di_index==p_index){
-                                System.out.println("error");
-                            }
-                            else if(di_index<p_index)
-                            {
-                                tts.speak("오른쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
-                                //System.out.println("하행");
-                            }
-                            else {
-                                tts.speak("왼쪽으로 내려가세요", TextToSpeech.QUEUE_ADD, null);
-                                System.out.println("상행");
-                            }
-                            drflag = true;
-
-                        }
-                        if (route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
-                            externflagbs = true;
-                            odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
-                            try {
-                                Thread.sleep(5000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            busNo = route[routeIndex].getPath(pathIndex - 1).split(" ")[1];
-                        }
-
-
                     }
 
                     textView.setText(msg);
