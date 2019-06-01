@@ -150,6 +150,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
     public boolean entranceflag = false;
     public boolean trafficflag = false;
     public boolean checkflag = false;
+    public boolean realtimeflag = false;
     public int left =0;
     public int top =0;
     public int width =0;
@@ -538,21 +539,20 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             System.out.println("상행");
                         }
                         drflag = true;
+                        tgflag = false;
 
+                    }
+
+                    if(route[routeIndex].getType() == 2 && !realtimeflag && pathIndex == 1) {
+                        odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
                     }
 
                     if (route[routeIndex].getType() == 2 && !isFindBus && pathIndex == 1) {
                         externflagbs = true;
-                        odsayService.requestBusStationInfo(route[routeIndex].getStartStationID(), onResultCallbackListener);
-                        try {
-                            Thread.sleep(5000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
                         busNo = route[routeIndex].getPath(pathIndex - 1).split(" ")[1];
                     }
 
-                    if ((int) distance[0] < 100000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
+                    if ((int) distance[0] < 1000 || pathIndex == 0 || (route[routeIndex].getType() == 1 && pathIndex == 1 && (int) distance[0] < 100)) {
                         pathIndex++;
 
                         if(externflagcr) {
@@ -575,7 +575,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             speech += "하세요.";
                         }
                         msg += speech;
-                        tts.speak(speech, TextToSpeech.QUEUE_FLUSH, null);
+                        tts.speak(speech, TextToSpeech.QUEUE_ADD, null);
 
                         if(speech.contains("횡단보도")){
                             externflagcr = true;
@@ -603,27 +603,29 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                             arsID = arsID.split("-")[0] + arsID.split("-")[1];
                         }
 
-                        AsyncTask<String, Void, HttpResponse> asyncTask = new AsyncTask<String, Void, HttpResponse>() {
+                        AsyncTask<String, Void, String> asyncTask = new AsyncTask<String, Void, String>() {
 
                             @Override
-                            protected HttpResponse doInBackground(String... url) {
+                            protected String doInBackground(String... url) {
                                 HttpGet request = new HttpGet(url[0]);
                                 HttpResponse response = null;
+                                String result = null;
 
                                 try {
                                     response = new DefaultHttpClient().execute(request);
+                                    result = EntityUtils.toString(response.getEntity());
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-                                return response;
+                                return result;
                             }
                         };
 
                         StringBuilder urlBuilder = new StringBuilder("http://ws.bus.go.kr/api/rest/stationinfo/getStationByUid"); /*URL*/
                         urlBuilder.append("?" + URLEncoder.encode("ServiceKey", "UTF-8") + "=" + key.getBusApiKey()); /*Service Key*/
                         urlBuilder.append("&" + URLEncoder.encode("arsId", "UTF-8") + "=" + URLEncoder.encode(arsID, "UTF-8")); /*정류소고유번호*/
-                        HttpResponse response = asyncTask.execute(urlBuilder.toString()).get();
-                        JSONArray r = XML.toJSONObject(EntityUtils.toString(response.getEntity())).getJSONObject("ServiceResult").getJSONObject("msgBody").getJSONArray("itemList");
+                        String response = asyncTask.execute(urlBuilder.toString()).get();
+                        JSONArray r = XML.toJSONObject(response).getJSONObject("ServiceResult").getJSONObject("msgBody").getJSONArray("itemList");
 
                         Log.d("response", r.toString());
 
@@ -637,7 +639,8 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                                 }
                                 arrmsg += "합니다.";
                                 tts.speak(arrmsg, TextToSpeech.QUEUE_ADD, null);
-                                break;
+                                realtimeflag = true;
+                                return;
                             }
                         }
                     }
@@ -645,9 +648,7 @@ public class RoadActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     e.printStackTrace();
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }  catch (InterruptedException e) {
+                } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (ExecutionException e) {
                     e.printStackTrace();
